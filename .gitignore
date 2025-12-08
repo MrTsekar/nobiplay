@@ -16,8 +16,12 @@ coverage/
 
 # Environment files
 .env
-.env.*
-!.env.example   # keep the example env file
+.env.local
+.env.production
+.env.development
+.env.test
+!.env.example
+!.env.production.template
 
 # Logs
 logs/
@@ -39,8 +43,12 @@ Thumbs.db
 *.tsbuildinfo
 
 # Markdown / Claude
-*.md
 *.claude
+# Allow important documentation
+!README.md
+!PRODUCTION-DEPLOYMENT.md
+!CHANGELOG.md
+!CONTRIBUTING.md
 
 # Databases
 *.sqlite

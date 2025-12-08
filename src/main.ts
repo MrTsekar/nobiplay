@@ -11,6 +11,26 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // CORS configuration
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN?.split(',') || [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:4200',
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+    ],
+    exposedHeaders: ['X-Total-Count', 'X-Page-Number'],
+    maxAge: 3600,
+  });
+
   // Global pipes and filters
   app.useGlobalPipes(
     new ValidationPipe({
