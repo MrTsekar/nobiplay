@@ -5,9 +5,13 @@ import { User } from '../user/entity/user.entity';
 import { TriviaSession } from '../trivia/entity/trivia-session.entity';
 import { LeaderboardService } from './service/leaderboard.service';
 import { LeaderboardController } from './controller/leaderboard.controller';
+import { CacheModule } from '../../common/modules/cache.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([LeaderboardEntry, User, TriviaSession])],
+  imports: [
+    TypeOrmModule.forFeature([LeaderboardEntry, User, TriviaSession]),
+    CacheModule, // 🔥 REQUIRED
+  ],
   controllers: [LeaderboardController],
   providers: [LeaderboardService],
   exports: [LeaderboardService],
