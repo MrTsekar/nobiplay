@@ -8,9 +8,10 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, Between } from 'typeorm';
+import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import { CacheService } from '../../../common/services/cache.service';
 import {
   AdminUser,
   AdminRole,
@@ -34,6 +35,10 @@ import {
   GetAnalyticsQueryDto,
   GetDashboardStatsDto,
   GetAuditLogsQueryDto,
+  PlatformUser,
+  TriviaQuestion,
+  MarketplaceItem,
+  RevenueAnalytics,
 } from '../dto/admin.dto';
 
 @Injectable()
@@ -46,13 +51,9 @@ export class AdminService {
     @InjectRepository(AdminAuditLog)
     private auditLogRepository: Repository<AdminAuditLog>,
     private jwtService: JwtService,
+    private cacheService: CacheService,
   ) {}
 
-  // ==================== ADMIN AUTHENTICATION ====================
-
-  /**
-   * Register a new admin user
-   */
   async createAdmin(dto: CreateAdminDto, createdBy: string): Promise<{
     id: string;
     email: string;
@@ -90,9 +91,6 @@ export class AdminService {
     };
   }
 
-  /**
-   * Admin login
-   */
   async adminLogin(dto: AdminLoginDto): Promise<{
     access_token: string;
     admin: { id: string; email: string; name: string; role: string };
@@ -130,9 +128,6 @@ export class AdminService {
     };
   }
 
-  /**
-   * Get all admin users
-   */
   async getAdmins(query: GetAdminsQueryDto): Promise<{
     data: AdminUser[];
     total: number;
@@ -158,9 +153,6 @@ export class AdminService {
     return { data, total };
   }
 
-  /**
-   * Update admin user
-   */
   async updateAdmin(
     adminId: string,
     dto: UpdateAdminDto,
@@ -188,9 +180,6 @@ export class AdminService {
     return admin;
   }
 
-  /**
-   * Delete admin user
-   */
   async deleteAdmin(adminId: string, deletedBy: string): Promise<void> {
     const admin = await this.adminUserRepository.findOne({
       where: { id: adminId },
@@ -209,57 +198,63 @@ export class AdminService {
     });
   }
 
-  // ==================== USER MANAGEMENT ====================
-
-  /**
-   * Get all users (admin view)
-   */
   async getUsers(query: GetUsersQueryDto): Promise<{
-    data: any[];
+    data: PlatformUser[];
     total: number;
   }> {
-    const whereConditions: any = {};
+    try {
+      const whereClause: string[] = [];
+      const params: any[] = [];
+      let paramIndex = 1;
 
-    if (query.search) {
-      whereConditions.phone = Like(`%${query.search}%`);
-    }
+      if (query.search) {
+        whereClause.push(`(u.phone LIKE $${paramIndex} OR u.email LIKE $${paramIndex})`);
+        params.push(`%${query.search}%`);
+        paramIndex++;
+      }
 
-    if (query.status) {
-      whereConditions.isActive = query.status === 'active';
-    }
+      if (query.status) {
+        whereClause.push(`u.isActive = $${paramIndex}`);
+        params.push(query.status === 'active');
+        paramIndex++;
+      }
 
-    const [data, total] = await this.adminUserRepository
-      .query(
+      const whereString = whereClause.length > 0 ? `WHERE ${whereClause.join(' AND ')}` : '';
+
+      const allowedSortColumns = ['createdAt', 'phone', 'email', 'firstName', 'lastName'];
+      const sortBy = allowedSortColumns.includes(query.sortBy || '') ? query.sortBy : 'createdAt';
+      const sortOrder = query.sortOrder === 'ASC' ? 'ASC' : 'DESC';
+
+      const data = await this.adminUserRepository.query(
         `
         SELECT u.id, u.phone, u.email, u.firstName, u.lastName, u.isActive, u.createdAt
         FROM users u
-        ${query.search ? `WHERE u.phone LIKE '%${query.search}%' OR u.email LIKE '%${query.search}%'` : ''}
-        ${query.status ? `${query.search ? 'AND' : 'WHERE'} u.isActive = ${query.status === 'active'}` : ''}
-        ORDER BY u.${query.sortBy || 'createdAt'} ${query.sortOrder || 'DESC'}
-        LIMIT $1 OFFSET $2
+        ${whereString}
+        ORDER BY u.${sortBy} ${sortOrder}
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
       `,
-        [query.limit || 20, query.offset || 0],
-      )
-      .then(data => {
-        return this.adminUserRepository.query(
-          `
-          SELECT COUNT(*) as total
-          FROM users u
-          ${query.search ? `WHERE u.phone LIKE '%${query.search}%' OR u.email LIKE '%${query.search}%'` : ''}
-          ${query.status ? `${query.search ? 'AND' : 'WHERE'} u.isActive = ${query.status === 'active'}` : ''}
-        `,
-        );
-      })
-      .catch(err => {
-        throw new InternalServerErrorException(err.message);
-      });
+        [...params, query.limit || 20, query.offset || 0],
+      );
 
-    return { data, total: total[0]?.total || 0 };
+      const countResult = await this.adminUserRepository.query(
+        `
+        SELECT COUNT(*) as total
+        FROM users u
+        ${whereString}
+      `,
+        params,
+      );
+
+      return {
+        data: data as PlatformUser[],
+        total: parseInt(countResult[0]?.total || '0', 10)
+      };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch users';
+      throw new InternalServerErrorException(errorMessage);
+    }
   }
 
-  /**
-   * Update user status
-   */
   async updateUserStatus(
     userId: string,
     dto: UpdateUserStatusDto,
@@ -280,15 +275,10 @@ export class AdminService {
     });
   }
 
-  // ==================== TRIVIA CONTENT MANAGEMENT ====================
-
-  /**
-   * Create trivia question
-   */
   async createTriviaQuestion(
     dto: CreateTriviaQuestionDto,
     adminId: string,
-  ): Promise<any> {
+  ): Promise<Partial<TriviaQuestion>> {
     const query = `
       INSERT INTO trivia_questions (
         question, options, correctAnswer, category, points, explanation, timeLimit, metadata, createdAt, updatedAt
@@ -314,59 +304,63 @@ export class AdminService {
       category: dto.category,
     });
 
+    await this.cacheService.clear('admin:trivia:*');
+
     return result;
   }
 
-  /**
-   * Get trivia questions
-   */
   async getTriviaQuestions(query: GetTriviaQuestionsQueryDto): Promise<{
-    data: any[];
+    data: TriviaQuestion[];
     total: number;
   }> {
-    const whereClause = [];
-    const params = [];
+    const cacheKey = `admin:trivia:${query.category || 'all'}:${query.search || 'none'}:${query.offset || 0}:${query.limit || 20}`;
 
-    if (query.category) {
-      whereClause.push(`category = $${params.length + 1}`);
-      params.push(query.category);
-    }
+    return await this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const whereClause = [];
+        const params = [];
 
-    if (query.search) {
-      whereClause.push(`question ILIKE $${params.length + 1}`);
-      params.push(`%${query.search}%`);
-    }
+        if (query.category) {
+          whereClause.push(`category = $${params.length + 1}`);
+          params.push(query.category);
+        }
 
-    const offset = query.offset || 0;
-    const limit = query.limit || 20;
+        if (query.search) {
+          whereClause.push(`question ILIKE $${params.length + 1}`);
+          params.push(`%${query.search}%`);
+        }
 
-    const data = await this.adminUserRepository.query(
-      `
-      SELECT * FROM trivia_questions
-      ${whereClause.length > 0 ? 'WHERE ' + whereClause.join(' AND ') : ''}
-      ORDER BY createdAt DESC
-      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
-    `,
-      [...params, limit, offset],
+        const offset = query.offset || 0;
+        const limit = query.limit || 20;
+
+        const data = await this.adminUserRepository.query(
+          `
+          SELECT * FROM trivia_questions
+          ${whereClause.length > 0 ? 'WHERE ' + whereClause.join(' AND ') : ''}
+          ORDER BY createdAt DESC
+          LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+        `,
+          [...params, limit, offset],
+        );
+
+        const countResult = await this.adminUserRepository.query(
+          `
+          SELECT COUNT(*) as total FROM trivia_questions
+          ${whereClause.length > 0 ? 'WHERE ' + whereClause.join(' AND ') : ''}
+        `,
+          params,
+        );
+
+        return {
+          data,
+          total: countResult[0]?.total || 0,
+        };
+      },
+      600,
     );
-
-    const countResult = await this.adminUserRepository.query(
-      `
-      SELECT COUNT(*) as total FROM trivia_questions
-      ${whereClause.length > 0 ? 'WHERE ' + whereClause.join(' AND ') : ''}
-    `,
-      params,
-    );
-
-    return {
-      data,
-      total: countResult[0]?.total || 0,
-    };
   }
 
-  /**
-   * Update trivia question
-   */
   async updateTriviaQuestion(
     questionId: string,
     dto: UpdateTriviaQuestionDto,
@@ -417,12 +411,11 @@ export class AdminService {
 
       // Log audit
       await this.logAudit(adminId, 'UPDATE_TRIVIA', 'trivia_questions', questionId, dto);
+
+      await this.cacheService.clear('admin:trivia:*');
     }
   }
 
-  /**
-   * Delete trivia questions
-   */
   async deleteTriviaQuestions(
     dto: BulkDeleteDto,
     adminId: string,
@@ -439,18 +432,15 @@ export class AdminService {
       deletedIds: dto.ids,
     });
 
+    await this.cacheService.clear('admin:trivia:*');
+
     return { deleted: result.affectedRows || dto.ids.length };
   }
 
-  // ==================== MARKETPLACE MANAGEMENT ====================
-
-  /**
-   * Create marketplace item
-   */
   async createMarketplaceItem(
     dto: CreateMarketplaceItemDto,
     adminId: string,
-  ): Promise<any> {
+  ): Promise<Partial<MarketplaceItem>> {
     const query = `
       INSERT INTO marketplace_items (
         name, description, type, coinPrice, cashValue, stockQuantity, isLimited, isFeatured, icon, displayOrder, metadata, isActive, createdAt, updatedAt
@@ -479,12 +469,11 @@ export class AdminService {
       type: dto.type,
     });
 
+    await this.cacheService.clear('admin:marketplace:*');
+
     return result;
   }
 
-  /**
-   * Update marketplace item
-   */
   async updateMarketplaceItem(
     itemId: string,
     dto: UpdateMarketplaceItemDto,
@@ -553,64 +542,68 @@ export class AdminService {
 
       // Log audit
       await this.logAudit(adminId, 'UPDATE_MARKETPLACE_ITEM', 'marketplace_items', itemId, dto);
+
+      await this.cacheService.clear('admin:marketplace:*');
     }
   }
 
-  /**
-   * Get marketplace items
-   */
   async getMarketplaceItems(query: GetMarketplaceItemsQueryDto): Promise<{
-    data: any[];
+    data: MarketplaceItem[];
     total: number;
   }> {
-    const whereClause = [];
-    const params = [];
+    const cacheKey = `admin:marketplace:${query.type || 'all'}:${query.isFeatured}:${query.isActive}:${query.offset || 0}:${query.limit || 20}`;
 
-    if (query.type) {
-      whereClause.push(`type = $${params.length + 1}`);
-      params.push(query.type);
-    }
+    return await this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const whereClause = [];
+        const params = [];
 
-    if (query.isFeatured !== undefined) {
-      whereClause.push(`isFeatured = $${params.length + 1}`);
-      params.push(query.isFeatured);
-    }
+        if (query.type) {
+          whereClause.push(`type = $${params.length + 1}`);
+          params.push(query.type);
+        }
 
-    if (query.isActive !== undefined) {
-      whereClause.push(`isActive = $${params.length + 1}`);
-      params.push(query.isActive);
-    }
+        if (query.isFeatured !== undefined) {
+          whereClause.push(`isFeatured = $${params.length + 1}`);
+          params.push(query.isFeatured);
+        }
 
-    const offset = query.offset || 0;
-    const limit = query.limit || 20;
+        if (query.isActive !== undefined) {
+          whereClause.push(`isActive = $${params.length + 1}`);
+          params.push(query.isActive);
+        }
 
-    const data = await this.adminUserRepository.query(
-      `
-      SELECT * FROM marketplace_items
-      ${whereClause.length > 0 ? 'WHERE ' + whereClause.join(' AND ') : ''}
-      ORDER BY displayOrder ASC, createdAt DESC
-      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
-    `,
-      [...params, limit, offset],
+        const offset = query.offset || 0;
+        const limit = query.limit || 20;
+
+        const data = await this.adminUserRepository.query(
+          `
+          SELECT * FROM marketplace_items
+          ${whereClause.length > 0 ? 'WHERE ' + whereClause.join(' AND ') : ''}
+          ORDER BY displayOrder ASC, createdAt DESC
+          LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+        `,
+          [...params, limit, offset],
+        );
+
+        const countResult = await this.adminUserRepository.query(
+          `
+          SELECT COUNT(*) as total FROM marketplace_items
+          ${whereClause.length > 0 ? 'WHERE ' + whereClause.join(' AND ') : ''}
+        `,
+          params,
+        );
+
+        return {
+          data,
+          total: countResult[0]?.total || 0,
+        };
+      },
+      600,
     );
-
-    const countResult = await this.adminUserRepository.query(
-      `
-      SELECT COUNT(*) as total FROM marketplace_items
-      ${whereClause.length > 0 ? 'WHERE ' + whereClause.join(' AND ') : ''}
-    `,
-      params,
-    );
-
-    return {
-      data,
-      total: countResult[0]?.total || 0,
-    };
   }
 
-  /**
-   * Delete marketplace items
-   */
   async deleteMarketplaceItems(
     dto: BulkDeleteDto,
     adminId: string,
@@ -627,29 +620,33 @@ export class AdminService {
       deletedIds: dto.ids,
     });
 
+    await this.cacheService.clear('admin:marketplace:*');
+
     return { deleted: result.affectedRows || dto.ids.length };
   }
 
-  // ==================== ANALYTICS ====================
-
-  /**
-   * Get dashboard statistics
-   */
   async getDashboardStats(): Promise<GetDashboardStatsDto> {
     try {
-      const stats = await this.adminUserRepository.query(`
-        SELECT
-          (SELECT COUNT(*) FROM users) as totalUsers,
-          (SELECT COUNT(*) FROM users WHERE "isActive" = true) as activeUsers,
-          (SELECT COALESCE(SUM(amount), 0) FROM payment_transactions WHERE status = 'success') as totalRevenue,
-          (SELECT COUNT(*) FROM payment_transactions) as totalTransactions,
-          (SELECT COUNT(*) FROM wallet_withdrawals WHERE status = 'pending') as pendingWithdrawals,
-          (SELECT COUNT(*) FROM users WHERE DATE("createdAt") = CURRENT_DATE) as newUsersToday,
-          (SELECT COUNT(*) FROM payment_transactions WHERE status = 'success') as totalPayments,
-          (SELECT COALESCE(AVG(w.balance), 0) FROM wallets w) as avgUserValue
-      `);
+      const cacheKey = 'admin:dashboard:stats';
 
-      return stats[0];
+      return await this.cacheService.getOrSet(
+        cacheKey,
+        async () => {
+          const stats = await this.adminUserRepository.query(`
+            SELECT
+              (SELECT COUNT(*) FROM users) as totalUsers,
+              (SELECT COUNT(*) FROM users WHERE "isActive" = true) as activeUsers,
+              (SELECT COALESCE(SUM(amount), 0) FROM payment_transactions WHERE status = 'success') as totalRevenue,
+              (SELECT COUNT(*) FROM payment_transactions) as totalTransactions,
+              (SELECT COUNT(*) FROM wallet_withdrawals WHERE status = 'pending') as pendingWithdrawals,
+              (SELECT COUNT(*) FROM users WHERE DATE("createdAt") = CURRENT_DATE) as newUsersToday,
+              (SELECT COUNT(*) FROM payment_transactions WHERE status = 'success') as totalPayments,
+              (SELECT COALESCE(AVG(w.balance), 0) FROM wallets w) as avgUserValue
+          `);
+          return stats[0];
+        },
+        300,
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Failed to get dashboard stats: ${errorMessage}`);
@@ -657,36 +654,37 @@ export class AdminService {
     }
   }
 
-  /**
-   * Get revenue analytics
-   */
-  async getRevenueAnalytics(query: GetAnalyticsQueryDto): Promise<any> {
+  async getRevenueAnalytics(query: GetAnalyticsQueryDto): Promise<RevenueAnalytics[]> {
     const startDate = query.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const endDate = query.endDate || new Date();
 
-    const result = await this.adminUserRepository.query(
-      `
-      SELECT 
-        DATE(createdAt) as date,
-        COUNT(*) as transactionCount,
-        SUM(amount) as totalAmount,
-        COUNT(CASE WHEN status = 'success' THEN 1 END) as successfulCount
-      FROM payment_transactions
-      WHERE createdAt BETWEEN $1 AND $2
-      GROUP BY DATE(createdAt)
-      ORDER BY date DESC
-    `,
-      [startDate, endDate],
-    );
+    const startDateStr = typeof startDate === 'string' ? startDate : startDate.toISOString().split('T')[0];
+    const endDateStr = typeof endDate === 'string' ? endDate : endDate.toISOString().split('T')[0];
+    const cacheKey = `admin:analytics:revenue:${startDateStr}-${endDateStr}`;
 
-    return result;
+    return await this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const result = await this.adminUserRepository.query(
+          `
+          SELECT
+            DATE(createdAt) as date,
+            COUNT(*) as transactionCount,
+            SUM(amount) as totalAmount,
+            COUNT(CASE WHEN status = 'success' THEN 1 END) as successfulCount
+          FROM payment_transactions
+          WHERE createdAt BETWEEN $1 AND $2
+          GROUP BY DATE(createdAt)
+          ORDER BY date DESC
+        `,
+          [startDate, endDate],
+        );
+        return result;
+      },
+      600,
+    );
   }
 
-  // ==================== AUDIT LOGS ====================
-
-  /**
-   * Get audit logs
-   */
   async getAuditLogs(query: GetAuditLogsQueryDto): Promise<{
     data: AdminAuditLog[];
     total: number;
@@ -723,9 +721,6 @@ export class AdminService {
     return { data, total };
   }
 
-  /**
-   * Log audit trail
-   */
   private async logAudit(
     adminId: string,
     action: string,

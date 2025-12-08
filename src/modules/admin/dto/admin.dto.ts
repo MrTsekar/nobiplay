@@ -15,8 +15,6 @@ import {
 import { Type } from 'class-transformer';
 import { AdminRole, AdminPermission } from '../entity/admin.entity';
 
-// ==================== ADMIN MANAGEMENT ====================
-
 export class CreateAdminDto {
   @IsEmail()
   email: string;
@@ -89,8 +87,6 @@ export class GetAdminsQueryDto {
   isActive?: boolean;
 }
 
-// ==================== USER MANAGEMENT ====================
-
 export class GetUsersQueryDto {
   @IsOptional()
   @Type(() => Number)
@@ -135,8 +131,6 @@ export class UserDetailResponseDto {
   isActive: boolean;
   createdAt: Date;
 }
-
-// ==================== CONTENT MANAGEMENT ====================
 
 export class CreateTriviaQuestionDto {
   @IsString()
@@ -346,8 +340,6 @@ export class GetMarketplaceItemsQueryDto {
   isActive?: boolean;
 }
 
-// ==================== ANALYTICS & REPORTING ====================
-
 export class GetAnalyticsQueryDto {
   @IsOptional()
   @IsString()
@@ -372,8 +364,6 @@ export class GetDashboardStatsDto {
   totalPayments: number;
   avgUserValue: number;
 }
-
-// ==================== AUDIT LOGS ====================
 
 export class GetAuditLogsQueryDto {
   @IsOptional()
@@ -403,4 +393,53 @@ export class GetAuditLogsQueryDto {
   @IsOptional()
   @IsString()
   endDate?: string;
+}
+
+export interface PlatformUser {
+  id: string;
+  phone: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  isActive: boolean;
+  createdAt: Date;
+}
+
+export interface TriviaQuestion {
+  id: string;
+  question: string;
+  options: string;
+  correctAnswer: number;
+  category: string;
+  points: number;
+  explanation?: string;
+  timeLimit: number;
+  metadata: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface MarketplaceItem {
+  id: string;
+  name: string;
+  description?: string;
+  type: string;
+  coinPrice: number;
+  cashValue?: number;
+  stockQuantity?: number;
+  isLimited: boolean;
+  isFeatured: boolean;
+  icon?: string;
+  displayOrder: number;
+  metadata: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RevenueAnalytics {
+  date: Date;
+  transactionCount: number;
+  totalAmount: number;
+  successfulCount: number;
 }

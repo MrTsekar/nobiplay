@@ -11,6 +11,7 @@ import { Repository } from 'typeorm';
 import axios, { AxiosInstance } from 'axios';
 import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
+import { CacheService } from '../../../common/services/cache.service';
 import {
   PaymentTransaction,
   PaymentProvider,
@@ -38,6 +39,7 @@ export class PaymentService {
     @InjectRepository(PaymentWebhook)
     private paymentWebhookRepository: Repository<PaymentWebhook>,
     private configService: ConfigService,
+    private cacheService: CacheService,
   ) {
     this.initializePaymentClients();
   }
@@ -76,9 +78,6 @@ export class PaymentService {
     });
   }
 
-  /**
-   * Initiate a payment transaction
-   */
   async initiatePayment(
     userId: string,
     dto: InitiatePaymentDto,
@@ -127,7 +126,7 @@ export class PaymentService {
           break;
 
         case PaymentProvider.VAS:
-          const vasResponse = await this.initializeVasPayment(transaction, dto);
+          const vasResponse = await this.initiateVasPayment(transaction, dto);
           paymentUrl = vasResponse.paymentUrl;
           providerReference = vasResponse.reference;
           break;
@@ -163,9 +162,6 @@ export class PaymentService {
     }
   }
 
-  /**
-   * Verify payment status
-   */
   async verifyPayment(
     userId: string,
     dto: PaymentVerificationDto,
@@ -228,6 +224,9 @@ export class PaymentService {
 
       await this.paymentTransactionRepository.save(transaction);
 
+      await this.cacheService.delete(`payment:transaction:${transaction.id}:${userId}`);
+      await this.cacheService.clear('admin:dashboard:stats');
+
       return {
         id: transaction.id,
         reference: transaction.reference,
@@ -242,34 +241,36 @@ export class PaymentService {
     }
   }
 
-  /**
-   * Get payment transaction details
-   */
   async getTransactionDetails(
     userId: string,
     transactionId: string,
   ): Promise<PaymentResponseDto> {
-    const transaction = await this.paymentTransactionRepository.findOne({
-      where: { id: transactionId, userId },
-    });
+    const cacheKey = `payment:transaction:${transactionId}:${userId}`;
 
-    if (!transaction) {
-      throw new NotFoundException('Payment transaction not found');
-    }
+    return await this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const transaction = await this.paymentTransactionRepository.findOne({
+          where: { id: transactionId, userId },
+        });
 
-    return {
-      id: transaction.id,
-      reference: transaction.reference,
-      amount: transaction.amount,
-      status: transaction.status,
-      provider: transaction.provider,
-      createdAt: transaction.createdAt,
-    };
+        if (!transaction) {
+          throw new NotFoundException('Payment transaction not found');
+        }
+
+        return {
+          id: transaction.id,
+          reference: transaction.reference,
+          amount: transaction.amount,
+          status: transaction.status,
+          provider: transaction.provider,
+          createdAt: transaction.createdAt,
+        };
+      },
+      1800,
+    );
   }
 
-  /**
-   * Get payment history
-   */
   async getPaymentHistory(
     userId: string,
     query: PaymentHistoryQueryDto,
@@ -308,9 +309,6 @@ export class PaymentService {
     };
   }
 
-  /**
-   * Initiate refund
-   */
   async initiateRefund(
     userId: string,
     dto: InitiateRefundDto,
@@ -357,9 +355,6 @@ export class PaymentService {
     }
   }
 
-  /**
-   * Handle payment webhook
-   */
   async handlePaymentWebhook(
     provider: PaymentProvider,
     payload: Record<string, any>,
@@ -426,6 +421,9 @@ export class PaymentService {
       transaction.completedAt = new Date();
       await this.paymentTransactionRepository.save(transaction);
 
+      await this.cacheService.delete(`payment:transaction:${transaction.id}:${transaction.userId}`);
+      await this.cacheService.clear('admin:dashboard:stats');
+
       webhook.status = 'processed' as any;
       await this.paymentWebhookRepository.save(webhook);
     } catch (error) {
@@ -443,8 +441,6 @@ export class PaymentService {
       throw error;
     }
   }
-
-  // ==================== PAYSTACK METHODS ====================
 
   private async initializePaystackPayment(
     transaction: PaymentTransaction,
@@ -511,8 +507,6 @@ export class PaymentService {
       throw new BadRequestException('Invalid webhook signature');
     }
   }
-
-  // ==================== MONNIFY METHODS ====================
 
   private async initializeMonnifyPayment(
     transaction: PaymentTransaction,
@@ -586,9 +580,7 @@ export class PaymentService {
     }
   }
 
-  // ==================== VAS METHODS ====================
-
-  private async initializeVasPayment(
+  private async initiateVasPayment(
     transaction: PaymentTransaction,
     dto: InitiatePaymentDto,
   ) {
@@ -656,8 +648,6 @@ export class PaymentService {
       throw new BadRequestException('Invalid webhook signature');
     }
   }
-
-  // ==================== HELPER METHODS ====================
 
   private generateReference(): string {
     return `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
