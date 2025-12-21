@@ -1,8 +1,9 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn, Index } from 'typeorm';
 import { User } from '../../user/entity/user.entity';
 import { Transaction } from './transaction.entity';
 
 @Entity('wallets')
+@Index(['userId'], { unique: true })
 export class Wallet {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -33,6 +34,15 @@ export class Wallet {
 
   @Column({ name: 'last_crypto_withdrawal', nullable: true })
   lastCryptoWithdrawal?: Date;
+
+  @Column({ name: 'daily_coins_earned', type: 'decimal', precision: 15, scale: 2, default: 0 })
+  dailyCoinsEarned: number;
+
+  @Column({ name: 'daily_sessions_played', default: 0 })
+  dailySessionsPlayed: number;
+
+  @Column({ name: 'last_limit_reset', nullable: true })
+  lastLimitReset?: Date;
 
   @OneToOne(() => User, (user) => user.wallet)
   @JoinColumn({ name: 'user_id' })

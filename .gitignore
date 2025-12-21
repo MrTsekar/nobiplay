@@ -44,9 +44,9 @@ Thumbs.db
 
 # Markdown / Claude
 *.claude
+*.md
 # Allow important documentation
 !README.md
-!PRODUCTION-DEPLOYMENT.md
 !CHANGELOG.md
 !CONTRIBUTING.md
 

@@ -1,57 +1,56 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
-import { TriviaQuestion, DifficultyLevel } from '../entity/trivia-question.entity';
-import { TriviaSession, SessionStatus, SessionMode } from '../entity/trivia-session.entity';
-import { TriviaSessionAnswer } from '../entity/trivia-session-answer.entity';
-import { TriviaCategory } from '../entity/trivia-category.entity';
-import { TriviaPack } from '../entity/trivia-pack.entity';
-import {
-  StartTriviaSessionDto,
-  SubmitAnswerDto,
-  GetTriviaSessionsDto,
-  GetQuestionsDto,
-  CreateTriviaQuestionDto,
-  CreateCategoryDto,
-  CreateTriviaPackDto,
-} from '../dto';
+import { Repository } from 'typeorm';
+import { TriviaSession, SessionStatus } from '../entity/trivia-session.entity';
+import { SubmitGameResultDto, GetTriviaSessionsDto, GetStatsDto } from '../dto';
 import { WalletService } from '../../wallet/service/wallet.service';
 import { TransactionType } from '../../wallet/entity/transaction.entity';
 import { UsersService } from '../../user/service/users.service';
 import { LeaderboardService } from '../../leaderboard/service/leaderboard.service';
 import { TournamentService } from '../../tournament/service/tournament.service';
 import { GamificationService } from '../../gamification/service/gamification.service';
+import { QuestsService } from '../../quests/service/quests.service';
+import { AchievementsService } from '../../achievements/service/achievements.service';
+import { QuestType } from '../../quests/entity/quest.entity';
+import { AchievementType } from '../../achievements/entity/achievement.entity';
 
 @Injectable()
 export class TriviaService {
   private readonly logger = new Logger(TriviaService.name);
 
   constructor(
-    @InjectRepository(TriviaQuestion)
-    private readonly questionRepository: Repository<TriviaQuestion>,
     @InjectRepository(TriviaSession)
     private readonly sessionRepository: Repository<TriviaSession>,
-    @InjectRepository(TriviaSessionAnswer)
-    private readonly answerRepository: Repository<TriviaSessionAnswer>,
-    @InjectRepository(TriviaCategory)
-    private readonly categoryRepository: Repository<TriviaCategory>,
-    @InjectRepository(TriviaPack)
-    private readonly packRepository: Repository<TriviaPack>,
     private readonly walletService: WalletService,
     private readonly usersService: UsersService,
     private readonly leaderboardService: LeaderboardService,
     private readonly tournamentService: TournamentService,
     private readonly gamificationService: GamificationService,
+    private readonly questsService: QuestsService,
+    private readonly achievementsService: AchievementsService,
   ) {}
 
   /**
-   * Start a new trivia session
+   * Submit game result from frontend
+   * Frontend handles entire game session using external trivia API (e.g., Open Trivia DB)
    */
-  async startSession(userId: string, dto: StartTriviaSessionDto): Promise<{
-    session: TriviaSession;
-    questions: TriviaQuestion[];
-  }> {
-    // Validate and debit stake amount if provided
+  async submitGameResult(userId: string, dto: SubmitGameResultDto) {
+    // Validate input
+    if (dto.correctAnswers + dto.wrongAnswers !== dto.totalQuestions) {
+      throw new BadRequestException('Answers don\'t match total questions');
+    }
+
+    if (dto.correctAnswers > dto.totalQuestions) {
+      throw new BadRequestException('Invalid correct answers count');
+    }
+
+    // Check rate limiting
+    await this.checkSessionCooldown(userId);
+
+    // Check daily limits
+    await this.checkDailyLimits(userId);
+
+    // Debit stake if provided
     if (dto.stakeAmount && dto.stakeAmount > 0) {
       await this.walletService.debitCoins({
         userId,
@@ -62,130 +61,45 @@ export class TriviaService {
       });
     }
 
-    // Get random questions based on criteria
-    const questions = await this.getRandomQuestions({
-      categoryId: dto.categoryId,
-      packId: dto.packId,
-      difficulty: dto.difficulty,
-      limit: dto.questionCount || 10,
+    // Calculate stats
+    const accuracy = dto.totalQuestions > 0 
+      ? (dto.correctAnswers / dto.totalQuestions) * 100 
+      : 0;
+
+    // Calculate rewards
+    const coinsEarned = this.calculateCoinsEarned({
+      correctAnswers: dto.correctAnswers,
+      totalQuestions: dto.totalQuestions,
+      stakeAmount: dto.stakeAmount || 0,
+      accuracy,
     });
 
-    if (questions.length === 0) {
-      throw new BadRequestException('No questions available for the selected criteria');
-    }
+    const xpEarned = this.calculateXPEarned({
+      correctAnswers: dto.correctAnswers,
+      totalQuestions: dto.totalQuestions,
+    });
 
-    // Create session
+    // Check daily coin limit
+    await this.validateDailyCoinLimit(userId, coinsEarned);
+
+    // Create session record
     const session = this.sessionRepository.create({
       userId,
       mode: dto.mode,
-      status: SessionStatus.IN_PROGRESS,
+      status: SessionStatus.COMPLETED,
       stakeAmount: dto.stakeAmount || 0,
-      totalQuestions: questions.length,
-      startedAt: new Date(),
+      totalQuestions: dto.totalQuestions,
+      correctAnswers: dto.correctAnswers,
+      wrongAnswers: dto.wrongAnswers,
+      coinsEarned,
+      xpEarned,
+      accuracyPercentage: accuracy,
+      timeTaken: dto.timeTaken || 0,
+      completedAt: new Date(),
       tournamentId: dto.tournamentId,
     });
 
     const savedSession = await this.sessionRepository.save(session);
-
-    this.logger.log(`Trivia session ${savedSession.id} started for user ${userId}`);
-
-    return {
-      session: savedSession,
-      questions: questions.map(q => this.sanitizeQuestion(q)) as TriviaQuestion[],
-    };
-  }
-
-  /**
-   * Submit an answer for a question
-   */
-  async submitAnswer(userId: string, dto: SubmitAnswerDto) {
-    const session = await this.sessionRepository.findOne({
-      where: { id: dto.sessionId, userId },
-    });
-
-    if (!session) {
-      throw new NotFoundException('Session not found');
-    }
-
-    if (session.status !== SessionStatus.IN_PROGRESS) {
-      throw new BadRequestException('Session is not active');
-    }
-
-    const question = await this.questionRepository.findOne({
-      where: { id: dto.questionId },
-    });
-
-    if (!question) {
-      throw new NotFoundException('Question not found');
-    }
-
-    const isCorrect = dto.selectedAnswer === question.correctAnswer;
-
-    // Create answer record
-    const answer = this.answerRepository.create({
-      sessionId: session.id,
-      questionId: question.id,
-      userAnswer: dto.selectedAnswer,
-      isCorrect,
-      timeTaken: dto.timeSpent || 0,
-      pointsEarned: isCorrect ? question.pointsValue : 0,
-    });
-
-    await this.answerRepository.save(answer);
-
-    // Update session stats
-    if (isCorrect) {
-      session.correctAnswers += 1;
-    } else {
-      session.wrongAnswers += 1;
-    }
-
-    await this.sessionRepository.save(session);
-
-    this.logger.log(`Answer submitted for session ${session.id}: ${isCorrect ? 'correct' : 'wrong'}`);
-
-    return {
-      isCorrect,
-      correctAnswer: question.correctAnswer,
-      pointsEarned: answer.pointsEarned,
-      explanation: question.explanation,
-    };
-  }
-
-  /**
-   * Complete a trivia session
-   */
-  async completeSession(userId: string, sessionId: string) {
-    const session = await this.sessionRepository.findOne({
-      where: { id: sessionId, userId },
-      relations: ['answers'],
-    });
-
-    if (!session) {
-      throw new NotFoundException('Session not found');
-    }
-
-    if (session.status === SessionStatus.COMPLETED) {
-      throw new BadRequestException('Session already completed');
-    }
-
-    // Calculate stats
-    const totalAnswered = session.correctAnswers + session.wrongAnswers;
-    const accuracy = totalAnswered > 0 ? (session.correctAnswers / totalAnswered) * 100 : 0;
-
-    // Calculate coins and XP earned
-    const coinsEarned = this.calculateCoinsEarned(session);
-    const xpEarned = this.calculateXPEarned(session);
-
-    // Update session
-    session.status = SessionStatus.COMPLETED;
-    session.completedAt = new Date();
-    session.accuracyPercentage = accuracy;
-    session.coinsEarned = coinsEarned;
-    session.xpEarned = xpEarned;
-    session.timeTaken = session.answers.reduce((sum, a) => sum + (a.timeTaken || 0), 0);
-
-    await this.sessionRepository.save(session);
 
     // Credit coins if earned
     if (coinsEarned > 0) {
@@ -193,13 +107,16 @@ export class TriviaService {
         userId,
         amount: coinsEarned,
         type: TransactionType.COIN_EARN,
-        description: `Trivia session reward`,
+        description: `Trivia game reward`,
         metadata: {
-          sessionId: session.id,
-          correctAnswers: session.correctAnswers,
+          sessionId: savedSession.id,
+          correctAnswers: dto.correctAnswers,
           accuracy: accuracy.toFixed(2),
         },
       });
+
+      // Update daily limits
+      await this.incrementDailyLimits(userId, coinsEarned);
     }
 
     // Update user stats
@@ -211,18 +128,18 @@ export class TriviaService {
 
     // Update leaderboard
     try {
-      await this.leaderboardService.updateLeaderboard(userId, session);
+      await this.leaderboardService.updateLeaderboard(userId, savedSession);
     } catch (error) {
       this.logger.error(`Failed to update leaderboard: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
     // Update tournament if applicable
-    if (session.tournamentId) {
+    if (dto.tournamentId) {
       try {
         await this.tournamentService.updateParticipantScore(
           userId,
-          session.tournamentId,
-          session,
+          dto.tournamentId,
+          savedSession,
         );
       } catch (error) {
         this.logger.error(`Failed to update tournament score: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -236,11 +153,72 @@ export class TriviaService {
       this.logger.error(`Failed to update streak: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
-    this.logger.log(`Session ${sessionId} completed: ${coinsEarned} coins, ${xpEarned} XP earned`);
+    // Update quest progress
+    try {
+      await this.questsService.updateQuestProgress(userId, {
+        questType: QuestType.PLAY_GAMES,
+        progress: 1,
+      });
+
+      if (accuracy >= 50) {
+        await this.questsService.updateQuestProgress(userId, {
+          questType: QuestType.WIN_GAMES,
+          progress: 1,
+        });
+      }
+
+      if (accuracy === 100) {
+        await this.questsService.updateQuestProgress(userId, {
+          questType: QuestType.PERFECT_SCORE,
+          progress: 1,
+        });
+      }
+
+      if (coinsEarned > 0) {
+        await this.questsService.updateQuestProgress(userId, {
+          questType: QuestType.EARN_COINS,
+          progress: coinsEarned,
+        });
+      }
+    } catch (error) {
+      this.logger.error(`Failed to update quest progress: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    // Update achievement progress
+    try {
+      await this.achievementsService.updateAchievementProgress(userId, {
+        achievementType: AchievementType.GAMES_PLAYED,
+        progress: 1,
+      });
+
+      if (accuracy >= 50) {
+        await this.achievementsService.updateAchievementProgress(userId, {
+          achievementType: AchievementType.GAMES_WON,
+          progress: 1,
+        });
+      }
+
+      if (accuracy === 100) {
+        await this.achievementsService.updateAchievementProgress(userId, {
+          achievementType: AchievementType.PERFECT_SCORES,
+          progress: 1,
+        });
+      }
+
+      if (coinsEarned > 0) {
+        await this.achievementsService.updateAchievementProgress(userId, {
+          achievementType: AchievementType.TOTAL_COINS,
+          progress: coinsEarned,
+        });
+      }
+    } catch (error) {
+      this.logger.error(`Failed to update achievement progress: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    this.logger.log(`Game completed for user ${userId}: ${coinsEarned} coins, ${xpEarned} XP earned`);
 
     return {
-      session,
-      totalAnswered,
+      session: savedSession,
       accuracy: Number(accuracy.toFixed(2)),
       coinsEarned,
       xpEarned,
@@ -249,7 +227,7 @@ export class TriviaService {
   }
 
   /**
-   * Get user's trivia sessions
+   * Get user's session history
    */
   async getUserSessions(userId: string, dto: GetTriviaSessionsDto) {
     const queryBuilder = this.sessionRepository
@@ -262,7 +240,7 @@ export class TriviaService {
     }
 
     const page = dto.page || 1;
-    const limit = dto.limit || 20;
+    const limit = Math.min(dto.limit || 20, 100); // Max 100
     const skip = (page - 1) * limit;
 
     const [sessions, total] = await queryBuilder.skip(skip).take(limit).getManyAndCount();
@@ -279,197 +257,75 @@ export class TriviaService {
   }
 
   /**
-   * Get session details
+   * Get user's statistics
    */
-  async getSessionDetails(userId: string, sessionId: string) {
-    const session = await this.sessionRepository.findOne({
-      where: { id: sessionId, userId },
-      relations: ['answers'],
-    });
+  async getUserStats(userId: string, dto: GetStatsDto) {
+    const queryBuilder = this.sessionRepository
+      .createQueryBuilder('session')
+      .where('session.userId = :userId', { userId })
+      .andWhere('session.status = :status', { status: SessionStatus.COMPLETED });
 
-    if (!session) {
-      throw new NotFoundException('Session not found');
+    if (dto.mode) {
+      queryBuilder.andWhere('session.mode = :mode', { mode: dto.mode });
     }
 
-    // Get full question details for answers
-    const questionIds = session.answers.map(a => a.questionId);
-    const questions = await this.questionRepository.find({
-      where: { id: In(questionIds) },
-    });
+    // Filter by period
+    if (dto.period && dto.period !== 'all') {
+      const now = new Date();
+      let startDate: Date;
 
-    const questionsMap = new Map(questions.map(q => [q.id, q]));
+      switch (dto.period) {
+        case 'today':
+          startDate = new Date(now.setHours(0, 0, 0, 0));
+          break;
+        case 'week':
+          startDate = new Date(now.setDate(now.getDate() - 7));
+          break;
+        case 'month':
+          startDate = new Date(now.setMonth(now.getMonth() - 1));
+          break;
+      }
 
-    const answersWithDetails = session.answers.map(answer => {
-      const question = questionsMap.get(answer.questionId);
-      return {
-        ...answer,
-        question: question ? this.sanitizeQuestion(question) : null,
-      };
-    });
-
-    return {
-      session,
-      answers: answersWithDetails,
-    };
-  }
-
-  /**
-   * Get all categories
-   */
-  async getCategories() {
-    return await this.categoryRepository.find({
-      where: { isActive: true },
-      order: { displayOrder: 'ASC', name: 'ASC' },
-    });
-  }
-
-  /**
-   * Get all trivia packs
-   */
-  async getTriviaPacks() {
-    return await this.packRepository.find({
-      where: { isActive: true },
-      order: { createdAt: 'DESC' },
-    });
-  }
-
-  /**
-   * Create user-generated trivia question
-   */
-  async createUserQuestion(userId: string, dto: CreateTriviaQuestionDto) {
-    const category = await this.categoryRepository.findOne({
-      where: { id: dto.categoryId },
-    });
-
-    if (!category) {
-      throw new NotFoundException('Category not found');
-    }
-
-    if (dto.packId) {
-      const pack = await this.packRepository.findOne({
-        where: { id: dto.packId },
-      });
-      if (!pack) {
-        throw new NotFoundException('Pack not found');
+      if (startDate) {
+        queryBuilder.andWhere('session.createdAt >= :startDate', { startDate });
       }
     }
 
-    // Validate options include correct answer
-    if (!dto.options.includes(dto.correctAnswer)) {
-      throw new BadRequestException('Correct answer must be one of the options');
-    }
+    const sessions = await queryBuilder.getMany();
 
-    const question = this.questionRepository.create({
-      ...dto,
-      createdBy: userId,
-      isApproved: false, // Requires admin approval
-      isActive: false,
-    });
-
-    const savedQuestion = await this.questionRepository.save(question);
-
-    this.logger.log(`User ${userId} created trivia question ${savedQuestion.id}`);
-
-    return savedQuestion;
-  }
-
-  /**
-   * Create category (admin only)
-   */
-  async createCategory(dto: CreateCategoryDto) {
-    const existing = await this.categoryRepository.findOne({
-      where: [{ name: dto.name }, { slug: dto.slug }],
-    });
-
-    if (existing) {
-      throw new BadRequestException('Category name or slug already exists');
-    }
-
-    const category = this.categoryRepository.create(dto);
-    return await this.categoryRepository.save(category);
-  }
-
-  /**
-   * Create trivia pack (admin only)
-   */
-  async createTriviaPack(dto: CreateTriviaPackDto) {
-    const existing = await this.packRepository.findOne({
-      where: [{ name: dto.name }, { slug: dto.slug }],
-    });
-
-    if (existing) {
-      throw new BadRequestException('Pack name or slug already exists');
-    }
-
-    const pack = this.packRepository.create(dto);
-    return await this.packRepository.save(pack);
-  }
-
-  /**
-   * Get user trivia creation stats
-   */
-  async getUserCreationStats(userId: string) {
-    const [totalSubmitted, totalApproved, totalPlayed] = await Promise.all([
-      this.questionRepository.count({ where: { createdBy: userId } }),
-      this.questionRepository.count({ where: { createdBy: userId, isApproved: true } }),
-      this.questionRepository
-        .createQueryBuilder('q')
-        .where('q.createdBy = :userId', { userId })
-        .select('SUM(q.usageCount)', 'total')
-        .getRawOne()
-        .then(result => result?.total || 0),
-    ]);
-
-    return {
-      totalSubmitted,
-      totalApproved,
-      totalPlayed: Number(totalPlayed),
-      approvalRate: totalSubmitted > 0 ? (totalApproved / totalSubmitted) * 100 : 0,
+    const stats = {
+      totalGames: sessions.length,
+      totalQuestions: sessions.reduce((sum, s) => sum + s.totalQuestions, 0),
+      correctAnswers: sessions.reduce((sum, s) => sum + s.correctAnswers, 0),
+      wrongAnswers: sessions.reduce((sum, s) => sum + s.wrongAnswers, 0),
+      totalCoinsEarned: sessions.reduce((sum, s) => sum + Number(s.coinsEarned), 0),
+      totalXpEarned: sessions.reduce((sum, s) => sum + s.xpEarned, 0),
+      averageAccuracy: sessions.length > 0
+        ? sessions.reduce((sum, s) => sum + Number(s.accuracyPercentage), 0) / sessions.length
+        : 0,
+      gamesWon: sessions.filter(s => Number(s.accuracyPercentage) >= 50).length,
+      gamesLost: sessions.filter(s => Number(s.accuracyPercentage) < 50).length,
+      perfectGames: sessions.filter(s => Number(s.accuracyPercentage) === 100).length,
+      averageTimeTaken: sessions.length > 0
+        ? sessions.reduce((sum, s) => sum + (s.timeTaken || 0), 0) / sessions.length
+        : 0,
     };
-  }
 
-  /**
-   * Get random questions based on criteria
-   */
-  private async getRandomQuestions(dto: GetQuestionsDto): Promise<TriviaQuestion[]> {
-    const queryBuilder = this.questionRepository
-      .createQueryBuilder('question')
-      .where('question.isActive = :isActive', { isActive: true })
-      .andWhere('question.isApproved = :isApproved', { isApproved: true });
-
-    if (dto.categoryId) {
-      queryBuilder.andWhere('question.categoryId = :categoryId', { categoryId: dto.categoryId });
-    }
-
-    if (dto.packId) {
-      queryBuilder.andWhere('question.packId = :packId', { packId: dto.packId });
-    }
-
-    if (dto.difficulty) {
-      queryBuilder.andWhere('question.difficulty = :difficulty', { difficulty: dto.difficulty });
-    }
-
-    const questions = await queryBuilder.orderBy('RANDOM()').limit(dto.limit || 10).getMany();
-
-    // Increment usage count
-    if (questions.length > 0) {
-      await this.questionRepository.increment(
-        { id: In(questions.map(q => q.id)) },
-        'usageCount',
-        1,
-      );
-    }
-
-    return questions;
+    return stats;
   }
 
   /**
    * Calculate coins earned based on performance
    */
-  private calculateCoinsEarned(session: TriviaSession): number {
-    const baseCoins = session.correctAnswers * 10;
-    const accuracyBonus = session.correctAnswers / session.totalQuestions >= 0.8 ? 20 : 0;
-    const stakePayout = session.stakeAmount > 0 ? session.stakeAmount * 1.5 : 0;
+  private calculateCoinsEarned(params: {
+    correctAnswers: number;
+    totalQuestions: number;
+    stakeAmount: number;
+    accuracy: number;
+  }): number {
+    const baseCoins = params.correctAnswers * 10;
+    const accuracyBonus = params.accuracy >= 80 ? 20 : 0;
+    const stakePayout = params.stakeAmount > 0 ? params.stakeAmount * 1.5 : 0;
 
     return baseCoins + accuracyBonus + stakePayout;
   }
@@ -477,18 +333,120 @@ export class TriviaService {
   /**
    * Calculate XP earned based on performance
    */
-  private calculateXPEarned(session: TriviaSession): number {
-    const baseXP = session.correctAnswers * 5;
-    const perfectBonus = session.correctAnswers === session.totalQuestions ? 25 : 0;
+  private calculateXPEarned(params: {
+    correctAnswers: number;
+    totalQuestions: number;
+  }): number {
+    const baseXP = params.correctAnswers * 5;
+    const perfectBonus = params.correctAnswers === params.totalQuestions ? 25 : 0;
 
     return baseXP + perfectBonus;
   }
 
   /**
-   * Sanitize question (remove correct answer for client)
+   * Check session cooldown (10s between sessions)
    */
-  private sanitizeQuestion(question: TriviaQuestion): Partial<TriviaQuestion> {
-    const { correctAnswer, createdBy, isApproved, usageCount, ...sanitized } = question;
-    return sanitized;
+  private async checkSessionCooldown(userId: string): Promise<void> {
+    const lastSession = await this.sessionRepository.findOne({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (lastSession) {
+      const timeSinceLastSession = Date.now() - new Date(lastSession.createdAt).getTime();
+      const cooldownPeriod = 10000; // 10 seconds
+
+      if (timeSinceLastSession < cooldownPeriod) {
+        const remainingTime = Math.ceil((cooldownPeriod - timeSinceLastSession) / 1000);
+        throw new BadRequestException(
+          `Please wait ${remainingTime} seconds before starting a new session`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Check daily limits (sessions and coins)
+   */
+  private async checkDailyLimits(userId: string): Promise<void> {
+    const wallet = await this.walletService.getWalletByUserId(userId);
+
+    // Reset daily limits if it's a new day
+    const lastReset = wallet.lastLimitReset ? new Date(wallet.lastLimitReset) : null;
+    const now = new Date();
+    const isNewDay = !lastReset ||
+      lastReset.getDate() !== now.getDate() ||
+      lastReset.getMonth() !== now.getMonth() ||
+      lastReset.getFullYear() !== now.getFullYear();
+
+    if (isNewDay) {
+      return;
+    }
+
+    // Daily limits
+    const MAX_SESSIONS_PER_DAY = 50;
+    const MAX_COINS_PER_DAY = 5000;
+
+    if (wallet.dailySessionsPlayed >= MAX_SESSIONS_PER_DAY) {
+      throw new BadRequestException(
+        `Daily session limit reached (${MAX_SESSIONS_PER_DAY} sessions per day)`,
+      );
+    }
+
+    if (Number(wallet.dailyCoinsEarned) >= MAX_COINS_PER_DAY) {
+      throw new BadRequestException(
+        `Daily coin earning limit reached (${MAX_COINS_PER_DAY} coins per day)`,
+      );
+    }
+  }
+
+  /**
+   * Validate daily coin limit before awarding
+   */
+  private async validateDailyCoinLimit(userId: string, coinsToAward: number): Promise<void> {
+    const wallet = await this.walletService.getWalletByUserId(userId);
+    const MAX_COINS_PER_DAY = 5000;
+
+    const lastReset = wallet.lastLimitReset ? new Date(wallet.lastLimitReset) : null;
+    const now = new Date();
+    const isNewDay = !lastReset ||
+      lastReset.getDate() !== now.getDate() ||
+      lastReset.getMonth() !== now.getMonth() ||
+      lastReset.getFullYear() !== now.getFullYear();
+
+    if (!isNewDay) {
+      const currentDailyCoins = Number(wallet.dailyCoinsEarned);
+      if (currentDailyCoins + coinsToAward > MAX_COINS_PER_DAY) {
+        const remainingCoins = MAX_COINS_PER_DAY - currentDailyCoins;
+        throw new BadRequestException(
+          `Daily coin limit would be exceeded. You can earn ${remainingCoins} more coins today.`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Increment daily limits after successful session
+   */
+  private async incrementDailyLimits(userId: string, coinsEarned: number): Promise<void> {
+    const wallet = await this.walletService.getWalletByUserId(userId);
+
+    const lastReset = wallet.lastLimitReset ? new Date(wallet.lastLimitReset) : null;
+    const now = new Date();
+    const isNewDay = !lastReset ||
+      lastReset.getDate() !== now.getDate() ||
+      lastReset.getMonth() !== now.getMonth() ||
+      lastReset.getFullYear() !== now.getFullYear();
+
+    if (isNewDay) {
+      wallet.dailyCoinsEarned = coinsEarned;
+      wallet.dailySessionsPlayed = 1;
+      wallet.lastLimitReset = now;
+    } else {
+      wallet.dailyCoinsEarned = Number(wallet.dailyCoinsEarned) + coinsEarned;
+      wallet.dailySessionsPlayed += 1;
+    }
+
+    await this.walletService['walletRepository'].save(wallet);
   }
 }

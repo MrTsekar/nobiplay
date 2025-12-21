@@ -13,6 +13,13 @@ export enum UserRank {
   LEGEND = 'legend',
 }
 
+export enum VIPTier {
+  FREE = 'free',
+  BRONZE = 'bronze',
+  SILVER = 'silver',
+  GOLD = 'gold',
+}
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -78,6 +85,17 @@ export class User {
 
   @Column({ nullable: true })
   campus?: string;
+
+  @Column({
+    type: 'enum',
+    enum: VIPTier,
+    default: VIPTier.FREE,
+    name: 'vip_tier',
+  })
+  vipTier: VIPTier;
+
+  @Column({ name: 'vip_expires_at', nullable: true })
+  vipExpiresAt?: Date;
 
   @Column({ name: 'is_verified', default: false })
   isVerified: boolean;

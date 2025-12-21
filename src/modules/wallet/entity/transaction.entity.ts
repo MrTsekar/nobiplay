@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Index } from 'typeorm';
 import { Wallet } from './wallet.entity';
 
 export enum TransactionType {
@@ -26,6 +26,10 @@ export enum TransactionStatus {
 }
 
 @Entity('transactions')
+@Index(['walletId', 'status', 'createdAt'])
+@Index(['walletId', 'type'])
+@Index(['status'])
+@Index(['reference'], { unique: true })
 export class Transaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;

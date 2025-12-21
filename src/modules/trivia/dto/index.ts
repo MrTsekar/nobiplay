@@ -1,1 +1,1 @@
-export * from './trivia.dto';
+export * from './game-result.dto';

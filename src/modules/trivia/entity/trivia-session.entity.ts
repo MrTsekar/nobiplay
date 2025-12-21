@@ -1,10 +1,7 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn, Index } from 'typeorm';
 import { User } from '../../user/entity/user.entity';
-import { TriviaSessionAnswer } from './trivia-session-answer.entity';
 
 export enum SessionStatus {
-  STARTED = 'started',
-  IN_PROGRESS = 'in_progress',
   COMPLETED = 'completed',
   ABANDONED = 'abandoned',
 }
@@ -17,6 +14,9 @@ export enum SessionMode {
 }
 
 @Entity('trivia_sessions')
+@Index(['userId', 'status', 'completedAt'])
+@Index(['tournamentId', 'status'])
+@Index(['userId', 'createdAt'])
 export class TriviaSession {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -34,7 +34,7 @@ export class TriviaSession {
   @Column({
     type: 'enum',
     enum: SessionStatus,
-    default: SessionStatus.STARTED,
+    default: SessionStatus.COMPLETED,
   })
   status: SessionStatus;
 
@@ -62,9 +62,6 @@ export class TriviaSession {
   @Column({ name: 'time_taken', nullable: true })
   timeTaken?: number;
 
-  @Column({ name: 'started_at', nullable: true })
-  startedAt?: Date;
-
   @Column({ name: 'completed_at', nullable: true })
   completedAt?: Date;
 
@@ -74,9 +71,6 @@ export class TriviaSession {
   @ManyToOne(() => User, (user) => user.triviaSessions)
   @JoinColumn({ name: 'user_id' })
   user: User;
-
-  @OneToMany(() => TriviaSessionAnswer, (answer) => answer.session)
-  answers: TriviaSessionAnswer[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
