@@ -443,3 +443,123 @@ export interface RevenueAnalytics {
   totalAmount: number;
   successfulCount: number;
 }
+
+// Support Ticket DTOs
+export class CreateSupportTicketDto {
+  @IsString()
+  subject: string;
+
+  @IsString()
+  description: string;
+
+  @IsEnum(['ACCOUNT', 'PAYMENT', 'TECHNICAL', 'GAMEPLAY', 'REPORT', 'OTHER'])
+  category: string;
+
+  @IsOptional()
+  @IsObject()
+  metadata?: {
+    userAgent?: string;
+    deviceInfo?: string;
+    errorLogs?: string[];
+    screenshots?: string[];
+  };
+}
+
+export class UpdateSupportTicketDto {
+  @IsOptional()
+  @IsNumber()
+  assignedToId?: number;
+
+  @IsOptional()
+  @IsEnum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'])
+  status?: string;
+
+  @IsOptional()
+  @IsEnum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
+  priority?: string;
+
+  @IsOptional()
+  @IsString()
+  adminNotes?: string;
+
+  @IsOptional()
+  @IsString()
+  resolution?: string;
+}
+
+export class GetSupportTicketsQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  limit?: number = 20;
+
+  @IsOptional()
+  @Type(() => Number)
+  offset?: number = 0;
+
+  @IsOptional()
+  @IsEnum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'])
+  status?: string;
+
+  @IsOptional()
+  @IsEnum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
+  priority?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  assignedToId?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  userId?: number;
+}
+
+// User Management DTOs
+export class BanUserDto {
+  @IsString()
+  reason: string;
+
+  @IsOptional()
+  @Type(() => Date)
+  expiresAt?: Date;
+}
+
+export class AdjustBalanceDto {
+  @IsNumber()
+  amount: number;
+
+  @IsEnum(['COINS', 'CASH'])
+  type: 'COINS' | 'CASH';
+
+  @IsString()
+  reason: string;
+}
+
+// Live Monitoring DTOs
+export interface LiveStats {
+  activeUsers: number;
+  activeGames: number;
+  recentTransactions: number;
+  serverLoad: {
+    cpu: number;
+    memory: number;
+  };
+}
+
+export interface ActiveGame {
+  userId: number;
+  username: string;
+  gameType: string;
+  startedAt: Date;
+  duration: number;
+}
+
+export interface RecentTransaction {
+  id: string;
+  userId: number;
+  username: string;
+  type: string;
+  amount: number;
+  createdAt: Date;
+}

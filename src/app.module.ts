@@ -21,6 +21,8 @@ import { AchievementsModule } from './modules/achievements/achievements.module';
 import { VIPModule } from './modules/vip/vip.module';
 import { FriendsModule } from './modules/friends/friends.module';
 import { PowerupsModule } from './modules/powerups/powerups.module';
+import { PersonalizationModule } from './modules/personalization/personalization.module';
+import { SecurityModule } from './modules/security/security.module';
 import { getDatabaseConfig } from './database/database.config';
 import { CacheService } from './common/services/cache.service';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
@@ -58,6 +60,8 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
     VIPModule,
     FriendsModule,
     PowerupsModule,
+    PersonalizationModule,
+    SecurityModule,
   ],
   providers: [CacheService],
   exports: [CacheService],

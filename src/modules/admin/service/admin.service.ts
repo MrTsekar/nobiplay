@@ -8,9 +8,10 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import * as os from 'os';
 import { CacheService } from '../../../common/services/cache.service';
 import {
   AdminUser,
@@ -18,6 +19,11 @@ import {
   AdminPermission,
   AdminAuditLog,
 } from '../entity/admin.entity';
+import { SupportTicket, TicketStatus } from '../entity/support-ticket.entity';
+import { AdminStats, StatsType } from '../entity/admin-stats.entity';
+import { User } from '../../user/entity/user.entity';
+import { TriviaSession } from '../../trivia/entity/trivia-session.entity';
+import { Transaction, TransactionType } from '../../wallet/entity/transaction.entity';
 import {
   CreateAdminDto,
   UpdateAdminDto,
@@ -39,6 +45,14 @@ import {
   TriviaQuestion,
   MarketplaceItem,
   RevenueAnalytics,
+  CreateSupportTicketDto,
+  UpdateSupportTicketDto,
+  GetSupportTicketsQueryDto,
+  BanUserDto,
+  AdjustBalanceDto,
+  LiveStats,
+  ActiveGame,
+  RecentTransaction,
 } from '../dto/admin.dto';
 
 @Injectable()
@@ -50,6 +64,16 @@ export class AdminService {
     private adminUserRepository: Repository<AdminUser>,
     @InjectRepository(AdminAuditLog)
     private auditLogRepository: Repository<AdminAuditLog>,
+    @InjectRepository(SupportTicket)
+    private supportTicketRepository: Repository<SupportTicket>,
+    @InjectRepository(AdminStats)
+    private adminStatsRepository: Repository<AdminStats>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    @InjectRepository(TriviaSession)
+    private triviaSessionRepository: Repository<TriviaSession>,
+    @InjectRepository(Transaction)
+    private transactionRepository: Repository<Transaction>,
     private jwtService: JwtService,
     private cacheService: CacheService,
   ) {}
@@ -742,5 +766,288 @@ export class AdminService {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.warn(`Failed to log audit: ${errorMessage}`);
     }
+  }
+
+  // ============= SUPPORT TICKET MANAGEMENT =============
+  async createSupportTicket(
+    userId: number,
+    dto: CreateSupportTicketDto,
+  ): Promise<SupportTicket> {
+    const ticket = this.supportTicketRepository.create({
+      userId,
+      ...dto,
+      category: dto.category as any,
+    });
+
+    await this.supportTicketRepository.save(ticket);
+    this.logger.log(`Support ticket created: ${ticket.id} by user ${userId}`);
+
+    return ticket;
+  }
+
+  async getSupportTickets(
+    query: GetSupportTicketsQueryDto,
+  ): Promise<{ data: SupportTicket[]; total: number }> {
+    const queryBuilder = this.supportTicketRepository
+      .createQueryBuilder('ticket')
+      .leftJoinAndSelect('ticket.user', 'user')
+      .leftJoinAndSelect('ticket.assignedTo', 'assignedTo')
+      .skip(query.offset)
+      .take(query.limit)
+      .orderBy('ticket.createdAt', 'DESC');
+
+    if (query.status) {
+      queryBuilder.andWhere('ticket.status = :status', { status: query.status });
+    }
+
+    if (query.priority) {
+      queryBuilder.andWhere('ticket.priority = :priority', { priority: query.priority });
+    }
+
+    if (query.assignedToId) {
+      queryBuilder.andWhere('ticket.assignedToId = :assignedToId', {
+        assignedToId: query.assignedToId,
+      });
+    }
+
+    if (query.userId) {
+      queryBuilder.andWhere('ticket.userId = :userId', { userId: query.userId });
+    }
+
+    const [data, total] = await queryBuilder.getManyAndCount();
+    return { data, total };
+  }
+
+  async updateSupportTicket(
+    ticketId: string,
+    dto: UpdateSupportTicketDto,
+    adminId: string,
+  ): Promise<SupportTicket> {
+    const ticket = await this.supportTicketRepository.findOne({
+      where: { id: ticketId },
+    });
+
+    if (!ticket) {
+      throw new NotFoundException('Support ticket not found');
+    }
+
+    Object.assign(ticket, dto);
+
+    if (dto.status === 'RESOLVED' || dto.status === 'CLOSED') {
+      ticket.resolvedAt = new Date();
+    }
+
+    await this.supportTicketRepository.save(ticket);
+
+    await this.logAudit(adminId, 'UPDATE_TICKET', 'support_tickets', ticketId, dto);
+
+    this.logger.log(`Support ticket updated: ${ticketId} by admin ${adminId}`);
+    return ticket;
+  }
+
+  // ============= USER MANAGEMENT =============
+  async banUser(userId: number, dto: BanUserDto, adminId: string): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { id: userId.toString() } });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.isActive = false;
+    // Note: Add bannedUntil and banReason fields to User entity if needed
+    await this.userRepository.save(user);
+
+    await this.logAudit(adminId, 'BAN_USER', 'users', userId.toString(), dto);
+
+    this.logger.log(`User banned: ${userId} by admin ${adminId}`);
+    return user;
+  }
+
+  async unbanUser(userId: number, adminId: string): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { id: userId.toString() } });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.isActive = true;
+    await this.userRepository.save(user);
+
+    await this.logAudit(adminId, 'UNBAN_USER', 'users', userId.toString(), {});
+
+    this.logger.log(`User unbanned: ${userId} by admin ${adminId}`);
+    return user;
+  }
+
+  async adjustUserBalance(
+    userId: number,
+    dto: AdjustBalanceDto,
+    adminId: string,
+  ): Promise<{ coins: number; cash: number }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId.toString() },
+      relations: ['wallet'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.wallet) {
+      throw new BadRequestException('User wallet not found');
+    }
+
+    if (dto.type === 'COINS') {
+      user.wallet.coinBalance += dto.amount;
+    } else {
+      user.wallet.cashBalance += dto.amount;
+    }
+
+    await this.userRepository.save(user);
+
+    await this.logAudit(adminId, 'ADJUST_BALANCE', 'wallets', user.wallet.id.toString(), dto);
+
+    this.logger.log(`Balance adjusted for user ${userId}: ${dto.amount} ${dto.type}`);
+
+    return {
+      coins: user.wallet.coinBalance,
+      cash: user.wallet.cashBalance,
+    };
+  }
+
+  // ============= LIVE MONITORING =============
+  async getLiveStats(): Promise<LiveStats> {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+
+    // Active users (users with activity in last 5 minutes)
+    const activeUsers = await this.triviaSessionRepository
+      .createQueryBuilder('session')
+      .where('session.startedAt > :fiveMinutesAgo', { fiveMinutesAgo })
+      .select('COUNT(DISTINCT session.userId)', 'count')
+      .getRawOne();
+
+    // Active games (in-progress sessions)
+    const activeGames = await this.triviaSessionRepository.count({
+      where: { completedAt: undefined as any },
+    });
+
+    // Recent transactions (last 5 minutes)
+    const recentTransactions = await this.transactionRepository.count({
+      where: {
+        createdAt: MoreThan(fiveMinutesAgo),
+      },
+    });
+
+    // Server metrics
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+
+    const cpuUsage = os.loadavg()[0] / os.cpus().length;
+
+    return {
+      activeUsers: parseInt(activeUsers.count) || 0,
+      activeGames,
+      recentTransactions,
+      serverLoad: {
+        cpu: Math.round(cpuUsage * 100),
+        memory: Math.round((usedMem / totalMem) * 100),
+      },
+    };
+  }
+
+  async getActiveGames(limit: number = 50): Promise<ActiveGame[]> {
+    const sessions = await this.triviaSessionRepository
+      .createQueryBuilder('session')
+      .leftJoinAndSelect('session.user', 'user')
+      .where('session.completedAt IS NULL')
+      .orderBy('session.createdAt', 'DESC')
+      .limit(limit)
+      .getMany();
+
+    return sessions.map((session) => ({
+      userId: parseInt(session.userId),
+      username: session.user?.phone || 'Unknown',
+      gameType: 'Trivia',
+      startedAt: session.createdAt,
+      duration: Math.floor((Date.now() - session.createdAt.getTime()) / 1000),
+    }));
+  }
+
+  async getRecentTransactions(limit: number = 50): Promise<RecentTransaction[]> {
+    const transactions = await this.transactionRepository
+      .createQueryBuilder('transaction')
+      .leftJoinAndSelect('transaction.wallet', 'wallet')
+      .leftJoinAndSelect('wallet.user', 'user')
+      .orderBy('transaction.createdAt', 'DESC')
+      .limit(limit)
+      .getMany();
+
+    return transactions.map((tx) => ({
+      id: tx.id.toString(),
+      userId: tx.wallet?.user?.id ? parseInt(tx.wallet.user.id) : 0,
+      username: tx.wallet?.user?.phone || 'Unknown',
+      type: tx.type,
+      amount: tx.amount,
+      createdAt: tx.createdAt,
+    }));
+  }
+
+  // ============= STATISTICS GENERATION =============
+  async generateDailyStats(date: Date = new Date()): Promise<AdminStats> {
+    const dateStr = date.toISOString().split('T')[0];
+    const startOfDay = new Date(dateStr + 'T00:00:00Z');
+    const endOfDay = new Date(dateStr + 'T23:59:59Z');
+
+    const existing = await this.adminStatsRepository.findOne({
+      where: { date: dateStr, type: StatsType.DAILY },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    // User metrics
+    const totalUsers = await this.userRepository.count();
+    const newUsers = await this.userRepository.count({
+      where: {
+        createdAt: MoreThan(startOfDay),
+      },
+    });
+
+    // Game metrics
+    const games = await this.triviaSessionRepository
+      .createQueryBuilder('session')
+      .where('session.startedAt BETWEEN :start AND :end', {
+        start: startOfDay,
+        end: endOfDay,
+      })
+      .getCount();
+
+    // Transaction metrics
+    const transactions = await this.transactionRepository
+      .createQueryBuilder('tx')
+      .where('tx.createdAt BETWEEN :start AND :end', { start: startOfDay, end: endOfDay })
+      .getMany();
+
+    const coinPurchases = transactions
+      .filter((tx) => tx.type === TransactionType.COIN_PURCHASE)
+      .reduce((sum, tx) => sum + tx.amount, 0);
+
+    const stats = this.adminStatsRepository.create({
+      date: dateStr,
+      type: StatsType.DAILY,
+      totalUsers,
+      newUsers,
+      totalGames: games,
+      triviaGames: games,
+      coinPurchases,
+      totalRevenue: coinPurchases,
+    });
+
+    await this.adminStatsRepository.save(stats);
+
+    this.logger.log(`Generated daily stats for ${dateStr}`);
+    return stats;
   }
 }

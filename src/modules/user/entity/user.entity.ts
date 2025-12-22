@@ -97,6 +97,33 @@ export class User {
   @Column({ name: 'vip_expires_at', nullable: true })
   vipExpiresAt?: Date;
 
+  // Personalization fields
+  @Column({ name: 'equipped_avatar_id', nullable: true })
+  equippedAvatarId?: number;
+
+  @Column({ name: 'profile_banner_id', nullable: true })
+  profileBannerId?: number;
+
+  @Column({ name: 'profile_frame_id', nullable: true })
+  profileFrameId?: number;
+
+  @Column({ name: 'win_animation_id', nullable: true })
+  winAnimationId?: number;
+
+  @Column({ name: 'sound_pack_id', nullable: true })
+  soundPackId?: number;
+
+  @Column({ name: 'profile_title', nullable: true })
+  profileTitle?: string;
+
+  @Column('simple-json', { nullable: true, name: 'customization_preferences' })
+  customizationPreferences?: {
+    theme?: string;
+    colorScheme?: string;
+    notificationSound?: boolean;
+    animationsEnabled?: boolean;
+  };
+
   @Column({ name: 'is_verified', default: false })
   isVerified: boolean;
 
