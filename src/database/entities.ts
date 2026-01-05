@@ -6,11 +6,7 @@ export { Wallet } from '../modules/wallet/entity/wallet.entity';
 export { Transaction, TransactionType, TransactionStatus } from '../modules/wallet/entity/transaction.entity';
 
 // Trivia Module
-export { TriviaCategory } from '../modules/trivia/entity/trivia-category.entity';
-export { TriviaPack } from '../modules/trivia/entity/trivia-pack.entity';
-export { TriviaQuestion, DifficultyLevel } from '../modules/trivia/entity/trivia-question.entity';
 export { TriviaSession, SessionStatus, SessionMode } from '../modules/trivia/entity/trivia-session.entity';
-export { TriviaSessionAnswer } from '../modules/trivia/entity/trivia-session-answer.entity';
 
 // Referral Module
 export { Referral, ReferralStatus } from '../modules/referral/entity/referral.entity';
