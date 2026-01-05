@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test - Nobiplay API</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .input-group input,
+        .input-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .result.success {
+            border-left-color: #28a745;
+            background: #f0fff4;
+        }
+        
+        .result.error {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .status-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .status-error {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .status-info {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .info-box strong {
+            color: #0066cc;
+        }
+        
+        code {
+            background: #f1f1f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            vertical-align: middle;
+            margin-left: 8px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 CORS Test Tool</h1>
+            <p>Test your Nobiplay API CORS configuration</p>
+        </div>
+        
+        <div class="content">
+            <div class="info-box">
+                <strong>ℹ️ Current Origin:</strong> <code id="currentOrigin"></code><br>
+                <strong>💡 Tip:</strong> Open this file from different ports (e.g., with live-server) to test CORS from different origins.
+            </div>
+            
+            <div class="section">
+                <h2>⚙️ Configuration</h2>
+                <div class="input-group">
+                    <label for="apiUrl">API Base URL:</label>
+                    <input type="text" id="apiUrl" value="http://localhost:3000/api/v1" placeholder="http://localhost:3000/api/v1">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🔍 Quick Tests</h2>
+                <button onclick="testPreflight()">Test Preflight (OPTIONS)</button>
+                <button onclick="testLogin()">Test Login Endpoint</button>
+                <button onclick="testWithCredentials()">Test With Credentials</button>
+                <button onclick="runAllTests()">Run All Tests</button>
+                <div id="quickResults"></div>
+            </div>
+            
+            <div class="section">
+                <h2>📮 Custom Request</h2>
+                <div class="input-group">
+                    <label for="endpoint">Endpoint:</label>
+                    <input type="text" id="endpoint" value="/auth/login" placeholder="/auth/login">
+                </div>
+                <div class="input-group">
+                    <label for="method">Method:</label>
+                    <input type="text" id="method" value="POST" placeholder="GET, POST, etc.">
+                </div>
+                <div class="input-group">
+                    <label for="body">Request Body (JSON):</label>
+                    <textarea id="body" rows="4" placeholder='{"email": "test@example.com", "password": "password123"}'></textarea>
+                </div>
+                <button onclick="sendCustomRequest()">Send Request</button>
+                <div id="customResults"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Display current origin
+        document.getElementById('currentOrigin').textContent = window.location.origin;
+        
+        function getApiUrl() {
+            return document.getElementById('apiUrl').value;
+        }
+        
+        function showResult(elementId, data, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${isSuccess ? 'success' : 'error'}">${data}</div>`;
+        }
+        
+        async function testPreflight() {
+            const resultDiv = document.getElementById('quickResults');
+            resultDiv.innerHTML = '<p>Testing preflight request...</p>';
+            
+            try {
+                const response = await fetch(getApiUrl() + '/auth/login', {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type,Authorization'
+                    }
+                });
+                
+                const headers = {};
+                for (let [key, value] of response.headers) {
+                    headers[key] = value;
+                }
+                
+                const result = `
+✅ Preflight Request Successful!
+
+Status: ${response.status} ${response.statusText}
+
+CORS Headers:
+- Access-Control-Allow-Origin: ${headers['access-control-allow-origin'] || 'Not set'}
+- Access-Control-Allow-Methods: ${headers['access-control-allow-methods'] || 'Not set'}
+- Access-Control-Allow-Headers: ${headers['access-control-allow-headers'] || 'Not set'}
+- Access-Control-Allow-Credentials: ${headers['access-control-allow-credentials'] || 'Not set'}
+- Access-Control-Max-Age: ${headers['access-control-max-age'] || 'Not set'}
+
+All Headers:
+${JSON.stringify(headers, null, 2)}
+                `.trim();
+                
+                showResult('quickResults', result, true);
+            } catch (error) {
+                showResult('quickResults', `❌ Preflight Failed!\n\nError: ${error.message}\n\nThis usually means:\n1. Backend is not running\n2. CORS is blocking this origin\n3. Network error`, false);
+            }
+        }
+        
+        async function testLogin() {
+            const resultDiv = document.getElementById('quickResults');
+            resultDiv.innerHTML = '<p>Testing login endpoint...</p>';
+            
+            try {
+                const response = await fetch(getApiUrl() + '/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'test123'
+                    })
+                });
+                
+                const data = await response.json();
+                const corsHeader = response.headers.get('access-control-allow-origin');
+                
+                const result = `
+✅ Request Completed!
+
+Status: ${response.status} ${response.statusText}
+CORS Header: ${corsHeader || 'Not set'}
+
+Response:
+${JSON.stringify(data, null, 2)}
+
+${response.status === 401 ? '💡 401 is expected - we are just testing CORS, not authentication' : ''}
+                `.trim();
+                
+                showResult('quickResults', result, response.ok || response.status === 401);
+            } catch (error) {
+                showResult('quickResults', `❌ Request Failed!\n\nError: ${error.message}\n\nPossible causes:\n1. CORS is blocking this origin (${window.location.origin})\n2. Backend is not running\n3. Network error\n\nAdd this origin to CORS_ORIGIN in your .env file`, false);
+            }
+        }
+        
+        async function testWithCredentials() {
+            const resultDiv = document.getElementById('quickResults');
+            resultDiv.innerHTML = '<p>Testing with credentials...</p>';
+            
+            try {
+                const response = await fetch(getApiUrl() + '/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',  // This is the key part
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'test123'
+                    })
+                });
+                
+                const data = await response.json();
+                const corsHeader = response.headers.get('access-control-allow-origin');
+                const credentialsHeader = response.headers.get('access-control-allow-credentials');
+                
+                const result = `
+✅ Request With Credentials Completed!
+
+Status: ${response.status} ${response.statusText}
+CORS Origin: ${corsHeader || 'Not set'}
+CORS Credentials: ${credentialsHeader || 'Not set'}
+
+${credentialsHeader === 'true' ? '✅ Credentials are allowed!' : '⚠️ Credentials might not be allowed'}
+
+Response:
+${JSON.stringify(data, null, 2)}
+                `.trim();
+                
+                showResult('quickResults', result, true);
+            } catch (error) {
+                showResult('quickResults', `❌ Request Failed!\n\nError: ${error.message}\n\nWhen using credentials:\n1. Origin must be explicitly listed (cannot use *)\n2. CORS must allow credentials\n3. Backend must be configured properly`, false);
+            }
+        }
+        
+        async function sendCustomRequest() {
+            const endpoint = document.getElementById('endpoint').value;
+            const method = document.getElementById('method').value;
+            const bodyText = document.getElementById('body').value;
+            
+            const resultDiv = document.getElementById('customResults');
+            resultDiv.innerHTML = '<p>Sending request...</p>';
+            
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                };
+                
+                if (bodyText && method !== 'GET' && method !== 'HEAD') {
+                    options.body = bodyText;
+                }
+                
+                const response = await fetch(getApiUrl() + endpoint, options);
+                const data = await response.json();
+                
+                const result = `
+✅ Custom Request Completed!
+
+Request:
+- Method: ${method}
+- Endpoint: ${endpoint}
+- Body: ${bodyText || 'None'}
+
+Response:
+- Status: ${response.status} ${response.statusText}
+- CORS Origin: ${response.headers.get('access-control-allow-origin') || 'Not set'}
+
+Data:
+${JSON.stringify(data, null, 2)}
+                `.trim();
+                
+                showResult('customResults', result, response.ok || response.status === 401);
+            } catch (error) {
+                showResult('customResults', `❌ Request Failed!\n\nError: ${error.message}`, false);
+            }
+        }
+        
+        async function runAllTests() {
+            const resultDiv = document.getElementById('quickResults');
+            resultDiv.innerHTML = '<p>Running all tests... This may take a few seconds.</p>';
+            
+            let results = '🧪 CORS Test Suite Results\n\n';
+            
+            // Test 1: Preflight
+            results += '1️⃣ Preflight Test:\n';
+            try {
+                const response = await fetch(getApiUrl() + '/auth/login', {
+                    method: 'OPTIONS'
+                });
+                results += `   ✅ Passed (Status: ${response.status})\n\n`;
+            } catch (error) {
+                results += `   ❌ Failed: ${error.message}\n\n`;
+            }
+            
+            // Test 2: Simple Request
+            results += '2️⃣ Simple Request Test:\n';
+            try {
+                const response = await fetch(getApiUrl() + '/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'test@example.com', password: 'test' })
+                });
+                results += `   ✅ Passed (Status: ${response.status})\n\n`;
+            } catch (error) {
+                results += `   ❌ Failed: ${error.message}\n\n`;
+            }
+            
+            // Test 3: With Credentials
+            results += '3️⃣ Credentials Test:\n';
+            try {
+                const response = await fetch(getApiUrl() + '/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ email: 'test@example.com', password: 'test' })
+                });
+                const allowCreds = response.headers.get('access-control-allow-credentials');
+                results += `   ${allowCreds === 'true' ? '✅' : '⚠️'} Passed (Credentials: ${allowCreds})\n\n`;
+            } catch (error) {
+                results += `   ❌ Failed: ${error.message}\n\n`;
+            }
+            
+            results += '\n✨ Test suite completed!';
+            results += '\n\n💡 Tips:';
+            results += '\n- All tests passed? Your CORS is configured correctly!';
+            results += '\n- Tests failing? Check if your origin is in CORS_ORIGIN';
+            results += `\n- Current origin: ${window.location.origin}`;
+            
+            showResult('quickResults', results, true);
+        }
+        
+        // Run a quick test on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('quickResults').innerHTML = 
+                    '<div class="info-box">👋 Click any button above to test CORS configuration</div>';
+            }, 100);
+        });
+    </script>
+</body>
+</html>
