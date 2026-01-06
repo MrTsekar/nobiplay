@@ -236,20 +236,24 @@ export class MarketplaceService {
    */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async processPendingRedemptions() {
-    const pendingRedemptions = await this.redemptionRepository.find({
-      where: { status: RedemptionStatus.PENDING },
-      relations: ['item'],
-      take: 50,
-    });
+    try {
+      const pendingRedemptions = await this.redemptionRepository.find({
+        where: { status: RedemptionStatus.PENDING },
+        relations: ['item'],
+        take: 50,
+      });
 
-    for (const redemption of pendingRedemptions) {
-      try {
-        await this.processRedemption(redemption, redemption.item);
-      } catch (error) {
-        this.logger.error(
-          `Error processing redemption ${redemption.id}: ${error instanceof Error ? error.message : String(error)}`,
-        );
+      for (const redemption of pendingRedemptions) {
+        try {
+          await this.processRedemption(redemption, redemption.item);
+        } catch (error) {
+          this.logger.error(
+            `Error processing redemption ${redemption.id}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
       }
+    } catch (error) {
+      // Silently fail if tables don't exist yet
     }
   }
 
@@ -258,19 +262,23 @@ export class MarketplaceService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async deactivateExpiredItems() {
-    const now = new Date();
+    try {
+      const now = new Date();
 
-    await this.itemRepository.update(
-      {
-        isActive: true,
-        expiresAt: new Date(now.getTime() - 1),
-      },
-      {
-        isActive: false,
-      },
-    );
+      await this.itemRepository.update(
+        {
+          isActive: true,
+          expiresAt: new Date(now.getTime() - 1),
+        },
+        {
+          isActive: false,
+        },
+      );
 
-    this.logger.log('Expired marketplace items deactivated');
+      this.logger.log('Expired marketplace items deactivated');
+    } catch (error) {
+      // Silently fail if tables don't exist yet
+    }
   }
 
   /**

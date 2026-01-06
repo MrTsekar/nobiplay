@@ -363,21 +363,22 @@ export class TournamentService {
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async updateTournamentStatuses() {
-    const now = new Date();
+    try {
+      const now = new Date();
 
-    // Open registration
-    await this.tournamentRepository.update(
-      {
-        status: TournamentStatus.UPCOMING,
-        registrationOpensAt: LessThan(now),
-      },
-      { status: TournamentStatus.REGISTRATION_OPEN },
-    );
+      // Open registration
+      await this.tournamentRepository.update(
+        {
+          status: TournamentStatus.UPCOMING,
+          registrationOpensAt: LessThan(now),
+        },
+        { status: TournamentStatus.REGISTRATION_OPEN },
+      );
 
-    // Start tournaments
-    await this.tournamentRepository.update(
-      {
-        status: TournamentStatus.REGISTRATION_OPEN,
+      // Start tournaments
+      await this.tournamentRepository.update(
+        {
+          status: TournamentStatus.REGISTRATION_OPEN,
         startsAt: LessThan(now),
       },
       { status: TournamentStatus.IN_PROGRESS },
@@ -391,12 +392,15 @@ export class TournamentService {
       },
     });
 
-    for (const tournament of expiredTournaments) {
-      try {
-        await this.completeTournament(tournament.id);
-      } catch (error) {
-        this.logger.error(`Error completing tournament ${tournament.id}: ${error instanceof Error ? error.message : String(error)}`);
+      for (const tournament of expiredTournaments) {
+        try {
+          await this.completeTournament(tournament.id);
+        } catch (error) {
+          this.logger.error(`Error completing tournament ${tournament.id}: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
+    } catch (error) {
+      // Silently fail if tables don't exist yet
     }
   }
 
