@@ -7,6 +7,10 @@ import { SessionMode } from '../entity/trivia-session.entity';
  */
 export class SubmitGameResultDto {
   @IsNotEmpty()
+  @IsString()
+  sessionToken: string; // Required - validates game session
+
+  @IsNotEmpty()
   @IsEnum(SessionMode)
   mode: SessionMode;
 

@@ -13,6 +13,7 @@ import { QuestsService } from '../../quests/service/quests.service';
 import { AchievementsService } from '../../achievements/service/achievements.service';
 import { QuestType } from '../../quests/entity/quest.entity';
 import { AchievementType } from '../../achievements/entity/achievement.entity';
+import { GameSessionService } from './game-session.service';
 
 @Injectable()
 export class TriviaService {
@@ -28,13 +29,19 @@ export class TriviaService {
     private readonly gamificationService: GamificationService,
     private readonly questsService: QuestsService,
     private readonly achievementsService: AchievementsService,
+    private readonly gameSessionService: GameSessionService,
   ) {}
 
   /**
-   * Submit game result from frontend
-   * Frontend handles entire game session using external trivia API (e.g., Open Trivia DB)
+   * Submit game result from frontend (with session validation)
    */
   async submitGameResult(userId: string, dto: SubmitGameResultDto) {
+    // Validate session token
+    const activeSession = await this.gameSessionService.validateSession(
+      userId,
+      dto.sessionToken,
+    );
+
     // Validate input
     if (dto.correctAnswers + dto.wrongAnswers !== dto.totalQuestions) {
       throw new BadRequestException('Answers don\'t match total questions');
@@ -44,33 +51,29 @@ export class TriviaService {
       throw new BadRequestException('Invalid correct answers count');
     }
 
+    // Validate question count matches session
+    if (dto.totalQuestions !== activeSession.totalQuestions) {
+      throw new BadRequestException('Question count does not match session');
+    }
+
     // Check rate limiting
     await this.checkSessionCooldown(userId);
 
     // Check daily limits
     await this.checkDailyLimits(userId);
 
-    // Debit stake if provided
-    if (dto.stakeAmount && dto.stakeAmount > 0) {
-      await this.walletService.debitCoins({
-        userId,
-        amount: dto.stakeAmount,
-        type: TransactionType.COIN_SPEND,
-        description: `Trivia ${dto.mode} entry fee`,
-        metadata: { mode: dto.mode },
-      });
-    }
+    // Entry fee already paid during session creation - no additional debit needed
 
     // Calculate stats
     const accuracy = dto.totalQuestions > 0 
       ? (dto.correctAnswers / dto.totalQuestions) * 100 
       : 0;
 
-    // Calculate rewards
+    // Calculate rewards (entry fee already paid, so no stake consideration)
     const coinsEarned = this.calculateCoinsEarned({
       correctAnswers: dto.correctAnswers,
       totalQuestions: dto.totalQuestions,
-      stakeAmount: dto.stakeAmount || 0,
+      stakeAmount: 0, // No additional stake
       accuracy,
     });
 
@@ -87,7 +90,7 @@ export class TriviaService {
       userId,
       mode: dto.mode,
       status: SessionStatus.COMPLETED,
-      stakeAmount: dto.stakeAmount || 0,
+      stakeAmount: activeSession.entryFee, // Record the entry fee paid
       totalQuestions: dto.totalQuestions,
       correctAnswers: dto.correctAnswers,
       wrongAnswers: dto.wrongAnswers,
@@ -96,10 +99,13 @@ export class TriviaService {
       accuracyPercentage: accuracy,
       timeTaken: dto.timeTaken || 0,
       completedAt: new Date(),
-      tournamentId: dto.tournamentId,
+      tournamentId: dto.tournamentId || activeSession.metadata?.tournamentId,
     });
 
     const savedSession = await this.sessionRepository.save(session);
+
+    // Mark active session as completed
+    await this.gameSessionService.completeSession(dto.sessionToken);
 
     // Credit coins if earned
     if (coinsEarned > 0) {
@@ -448,5 +454,27 @@ export class TriviaService {
     }
 
     await this.walletService['walletRepository'].save(wallet);
+  }
+
+  // ===== Delegate methods to GameSessionService =====
+
+  async getCategories() {
+    return this.gameSessionService.getCategories();
+  }
+
+  async calculatePricing(questionCount?: number, difficulty?: string) {
+    return this.gameSessionService.calculatePricing(questionCount, difficulty);
+  }
+
+  async startGameSession(userId: string, dto: any) {
+    return this.gameSessionService.startGameSession(userId, dto);
+  }
+
+  async verifyDirectPayment(userId: string, sessionToken: string, paymentReference: string) {
+    return this.gameSessionService.verifyDirectPayment(userId, sessionToken, paymentReference);
+  }
+
+  async getQuestionsForSession(userId: string, sessionToken: string) {
+    return this.gameSessionService.getQuestionsForSession(userId, sessionToken);
   }
 }

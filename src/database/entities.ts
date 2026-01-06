@@ -7,6 +7,7 @@ export { Transaction, TransactionType, TransactionStatus } from '../modules/wall
 
 // Trivia Module
 export { TriviaSession, SessionStatus, SessionMode } from '../modules/trivia/entity/trivia-session.entity';
+export { ActiveGameSession, PaymentType, GameSessionStatus } from '../modules/trivia/entity/active-game-session.entity';
 
 // Referral Module
 export { Referral, ReferralStatus } from '../modules/referral/entity/referral.entity';
