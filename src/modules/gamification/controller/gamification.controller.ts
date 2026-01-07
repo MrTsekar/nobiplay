@@ -32,7 +32,7 @@ export class GamificationController {
    */
   @Get('streak')
   async getUserStreak(@Request() req: RequestWithUser) {
-    return await this.gamificationService.getUserStreak(req.user.id);
+    return await this.gamificationService.getUserStreak(req.user.userId);
   }
 
   /**
@@ -41,7 +41,7 @@ export class GamificationController {
    */
   @Post('spin')
   async spinWheel(@Request() req: RequestWithUser) {
-    return await this.gamificationService.spinWheel(req.user.id);
+    return await this.gamificationService.spinWheel(req.user.userId);
   }
 
   /**
@@ -54,7 +54,7 @@ export class GamificationController {
     @Query('limit') limit?: number,
   ) {
     return await this.gamificationService.getUserSpinHistory(
-      req.user.id,
+      req.user.userId,
       limit || 20,
     );
   }
@@ -84,7 +84,7 @@ export class GamificationController {
   @Get('mystery-boxes')
   async getUserMysteryBoxes(@Request() req: RequestWithUser) {
     return await this.gamificationService.getUserMysteryBoxes(
-      req.user.id,
+      req.user.userId,
     );
   }
 
@@ -95,7 +95,7 @@ export class GamificationController {
   @Post('mystery-boxes/open')
   async openMysteryBox(@Request() req: RequestWithUser, @Body() dto: OpenMysteryBoxDto) {
     return await this.gamificationService.openMysteryBox(
-      req.user.id,
+      req.user.userId,
       dto.boxId,
     );
   }

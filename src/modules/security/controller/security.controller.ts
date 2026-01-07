@@ -34,7 +34,7 @@ export class SecurityController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Block an IP address (admin)' })
   async blockIp(@Request() req: RequestWithUser, @Body() dto: BlockIpDto) {
-    return await this.securityService.blockIp(dto, req.user.id.toString());
+    return await this.securityService.blockIp(dto, req.user.userId.toString());
   }
 
   @Post('ip/unblock')
@@ -93,7 +93,7 @@ export class SecurityController {
     return await this.securityService.updateFraudAlert(
       alertId,
       dto,
-      req.user.id.toString(),
+      req.user.userId.toString(),
     );
   }
 
@@ -102,7 +102,7 @@ export class SecurityController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get user active sessions' })
   async getMySessions(@Request() req: RequestWithUser) {
-    return await this.securityService.getUserSessions(parseInt(req.user.id));
+    return await this.securityService.getUserSessions(parseInt(req.user.userId));
   }
 
   @Post('sessions/:sessionId/revoke')
@@ -117,7 +117,7 @@ export class SecurityController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Revoke all user sessions' })
   async revokeAllSessions(@Request() req: RequestWithUser) {
-    await this.securityService.revokeAllUserSessions(parseInt(req.user.id));
+    await this.securityService.revokeAllUserSessions(parseInt(req.user.userId));
     return { status: 'success' };
   }
 }

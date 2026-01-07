@@ -41,21 +41,21 @@ export class PersonalizationController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get user owned avatars' })
   async getMyAvatars(@Request() req: RequestWithUser) {
-    return await this.personalizationService.getUserAvatars(parseInt(req.user.id));
+    return await this.personalizationService.getUserAvatars(parseInt(req.user.userId));
   }
 
   @Post('avatars/purchase')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Purchase an avatar' })
   async purchaseAvatar(@Request() req: RequestWithUser, @Body() dto: PurchaseAvatarDto) {
-    return await this.personalizationService.purchaseAvatar(parseInt(req.user.id), dto);
+    return await this.personalizationService.purchaseAvatar(parseInt(req.user.userId), dto);
   }
 
   @Post('avatars/equip')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Equip an avatar' })
   async equipAvatar(@Request() req: RequestWithUser, @Body() dto: EquipAvatarDto) {
-    await this.personalizationService.equipAvatar(parseInt(req.user.id), dto);
+    await this.personalizationService.equipAvatar(parseInt(req.user.userId), dto);
     return { status: 'success' };
   }
 
@@ -74,7 +74,7 @@ export class PersonalizationController {
     @Request() req: RequestWithUser,
     @Query('type') type?: ProfileItemType,
   ) {
-    return await this.personalizationService.getUserProfileItems(parseInt(req.user.id), type);
+    return await this.personalizationService.getUserProfileItems(parseInt(req.user.userId), type);
   }
 
   @Post('items/purchase')
@@ -84,14 +84,14 @@ export class PersonalizationController {
     @Request() req: RequestWithUser,
     @Body() dto: PurchaseProfileItemDto,
   ) {
-    return await this.personalizationService.purchaseProfileItem(parseInt(req.user.id), dto);
+    return await this.personalizationService.purchaseProfileItem(parseInt(req.user.userId), dto);
   }
 
   @Post('items/equip')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Equip a profile item' })
   async equipProfileItem(@Request() req: RequestWithUser, @Body() dto: EquipProfileItemDto) {
-    await this.personalizationService.equipProfileItem(parseInt(req.user.id), dto);
+    await this.personalizationService.equipProfileItem(parseInt(req.user.userId), dto);
     return { status: 'success' };
   }
 
@@ -100,7 +100,7 @@ export class PersonalizationController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get user equipped customizations' })
   async getMyCustomization(@Request() req: RequestWithUser) {
-    return await this.personalizationService.getUserCustomization(parseInt(req.user.id));
+    return await this.personalizationService.getUserCustomization(parseInt(req.user.userId));
   }
 
   // ============= ADMIN =============

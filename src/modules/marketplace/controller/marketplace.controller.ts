@@ -52,7 +52,7 @@ export class MarketplaceController {
   @Post('redeem')
   async redeemItem(@Request() req: RequestWithUser, @Body() dto: RedeemItemDto) {
     return await this.marketplaceService.redeemItem(
-      req.user.id,
+      req.user.userId,
       dto.itemId,
       {
         recipientPhone: dto.recipientPhone,
@@ -73,7 +73,7 @@ export class MarketplaceController {
     @Query('limit') limit?: number,
   ) {
     return await this.marketplaceService.getUserRedemptions(
-      req.user.id,
+      req.user.userId,
       limit || 20,
     );
   }
@@ -85,7 +85,7 @@ export class MarketplaceController {
   @Get('redemptions/:id')
   async getRedemptionDetails(@Request() req: RequestWithUser, @Param('id') id: string) {
     return await this.marketplaceService.getRedemptionDetails(
-      req.user.id,
+      req.user.userId,
       id,
     );
   }

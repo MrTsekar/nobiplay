@@ -20,7 +20,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) return null;
 
     return {
-      userId: user.id,
+      userId: user.id.toString(),
       phone: user.phone,
       rank: user.rank,
     };

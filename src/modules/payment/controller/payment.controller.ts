@@ -38,7 +38,7 @@ export class PaymentController {
     @Request() req: RequestWithUser,
     @Body() dto: InitiatePaymentDto,
   ) {
-    return await this.paymentService.initiatePayment(req.user.id, dto);
+    return await this.paymentService.initiatePayment(req.user.userId, dto);
   }
 
   /**
@@ -52,7 +52,7 @@ export class PaymentController {
     @Request() req: RequestWithUser,
     @Body() dto: PaymentVerificationDto,
   ) {
-    return await this.paymentService.verifyPayment(req.user.id, dto);
+    return await this.paymentService.verifyPayment(req.user.userId, dto);
   }
 
   /**
@@ -67,7 +67,7 @@ export class PaymentController {
     @Param('transactionId') transactionId: string,
   ) {
     return await this.paymentService.getTransactionDetails(
-      req.user.id,
+      req.user.userId,
       transactionId,
     );
   }
@@ -81,7 +81,7 @@ export class PaymentController {
     @Request() req: RequestWithUser,
     @Query() query: PaymentHistoryQueryDto,
   ) {
-    return await this.paymentService.getPaymentHistory(req.user.id, query);
+    return await this.paymentService.getPaymentHistory(req.user.userId, query);
   }
 
   /**
@@ -93,7 +93,7 @@ export class PaymentController {
     @Request() req: RequestWithUser,
     @Body() dto: InitiateRefundDto,
   ) {
-    return await this.paymentService.initiateRefund(req.user.id, dto);
+    return await this.paymentService.initiateRefund(req.user.userId, dto);
   }
 
   /**

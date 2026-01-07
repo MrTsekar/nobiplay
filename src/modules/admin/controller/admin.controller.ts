@@ -55,7 +55,7 @@ export class AdminController {
     @Request() req: RequestWithUser,
     @Body() dto: CreateAdminDto,
   ) {
-    return await this.adminService.createAdmin(dto, req.user.id);
+    return await this.adminService.createAdmin(dto, req.user.userId);
   }
 
   @Get('users')
@@ -71,7 +71,7 @@ export class AdminController {
     @Param('adminId') adminId: string,
     @Body() dto: UpdateAdminDto,
   ) {
-    return await this.adminService.updateAdmin(adminId, dto, req.user.id);
+    return await this.adminService.updateAdmin(adminId, dto, req.user.userId);
   }
 
   @Delete('users/:adminId')
@@ -81,7 +81,7 @@ export class AdminController {
     @Request() req: RequestWithUser,
     @Param('adminId') adminId: string,
   ) {
-    await this.adminService.deleteAdmin(adminId, req.user.id);
+    await this.adminService.deleteAdmin(adminId, req.user.userId);
     return { status: 'success' };
   }
 
@@ -99,7 +99,7 @@ export class AdminController {
     @Param('userId') userId: string,
     @Body() dto: UpdateUserStatusDto,
   ) {
-    await this.adminService.updateUserStatus(userId, dto, req.user.id);
+    await this.adminService.updateUserStatus(userId, dto, req.user.userId);
     return { status: 'success' };
   }
 
@@ -109,7 +109,7 @@ export class AdminController {
     @Request() req: RequestWithUser,
     @Body() dto: CreateTriviaQuestionDto,
   ) {
-    return await this.adminService.createTriviaQuestion(dto, req.user.id);
+    return await this.adminService.createTriviaQuestion(dto, req.user.userId);
   }
 
   @Get('content/trivia')
@@ -126,7 +126,7 @@ export class AdminController {
     @Param('questionId') questionId: string,
     @Body() dto: UpdateTriviaQuestionDto,
   ) {
-    await this.adminService.updateTriviaQuestion(questionId, dto, req.user.id);
+    await this.adminService.updateTriviaQuestion(questionId, dto, req.user.userId);
     return { status: 'success' };
   }
 
@@ -137,7 +137,7 @@ export class AdminController {
     @Request() req: RequestWithUser,
     @Body() dto: BulkDeleteDto,
   ) {
-    return await this.adminService.deleteTriviaQuestions(dto, req.user.id);
+    return await this.adminService.deleteTriviaQuestions(dto, req.user.userId);
   }
 
   @Post('content/marketplace')
@@ -146,7 +146,7 @@ export class AdminController {
     @Request() req: RequestWithUser,
     @Body() dto: CreateMarketplaceItemDto,
   ) {
-    return await this.adminService.createMarketplaceItem(dto, req.user.id);
+    return await this.adminService.createMarketplaceItem(dto, req.user.userId);
   }
 
   @Get('content/marketplace')
@@ -163,7 +163,7 @@ export class AdminController {
     @Param('itemId') itemId: string,
     @Body() dto: UpdateMarketplaceItemDto,
   ) {
-    await this.adminService.updateMarketplaceItem(itemId, dto, req.user.id);
+    await this.adminService.updateMarketplaceItem(itemId, dto, req.user.userId);
     return { status: 'success' };
   }
 
@@ -174,7 +174,7 @@ export class AdminController {
     @Request() req: RequestWithUser,
     @Body() dto: BulkDeleteDto,
   ) {
-    return await this.adminService.deleteMarketplaceItems(dto, req.user.id);
+    return await this.adminService.deleteMarketplaceItems(dto, req.user.userId);
   }
 
   @Get('analytics/dashboard')
@@ -203,7 +203,7 @@ export class AdminController {
     @Request() req: RequestWithUser,
     @Body() dto: CreateSupportTicketDto,
   ) {
-    return await this.adminService.createSupportTicket(parseInt(req.user.id), dto);
+    return await this.adminService.createSupportTicket(parseInt(req.user.userId), dto);
   }
 
   @Get('support/tickets')
@@ -221,7 +221,7 @@ export class AdminController {
     @Param('ticketId') ticketId: string,
     @Body() dto: UpdateSupportTicketDto,
   ) {
-    return await this.adminService.updateSupportTicket(ticketId, dto, req.user.id);
+    return await this.adminService.updateSupportTicket(ticketId, dto, req.user.userId);
   }
 
   // ============= USER MANAGEMENT =============
@@ -233,7 +233,7 @@ export class AdminController {
     @Param('userId') userId: number,
     @Body() dto: BanUserDto,
   ) {
-    return await this.adminService.banUser(userId, dto, req.user.id);
+    return await this.adminService.banUser(userId, dto, req.user.userId);
   }
 
   @Post('users/:userId/unban')
@@ -243,7 +243,7 @@ export class AdminController {
     @Request() req: RequestWithUser,
     @Param('userId') userId: number,
   ) {
-    return await this.adminService.unbanUser(userId, req.user.id);
+    return await this.adminService.unbanUser(userId, req.user.userId);
   }
 
   @Post('users/:userId/adjust-balance')
@@ -254,7 +254,7 @@ export class AdminController {
     @Param('userId') userId: number,
     @Body() dto: AdjustBalanceDto,
   ) {
-    return await this.adminService.adjustUserBalance(userId, dto, req.user.id);
+    return await this.adminService.adjustUserBalance(userId, dto, req.user.userId);
   }
 
   // ============= LIVE MONITORING =============

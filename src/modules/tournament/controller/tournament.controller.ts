@@ -57,7 +57,7 @@ export class TournamentController {
    */
   @Post(':id/register')
   async registerForTournament(@Request() req: RequestWithUser, @Param('id') id: string) {
-    return await this.tournamentService.registerForTournament(req.user.id, id);
+    return await this.tournamentService.registerForTournament(req.user.userId, id);
   }
 
   /**
@@ -75,7 +75,7 @@ export class TournamentController {
    */
   @Post('bets')
   async placeBet(@Request() req: RequestWithUser, @Body() dto: PlaceBetDto) {
-    return await this.tournamentService.placeBet(req.user.id, dto);
+    return await this.tournamentService.placeBet(req.user.userId, dto);
   }
 
   /**
@@ -84,6 +84,6 @@ export class TournamentController {
    */
   @Get('bets/me')
   async getUserBets(@Request() req: RequestWithUser, @Query('tournamentId') tournamentId?: string) {
-    return await this.tournamentService.getUserBets(req.user.id, tournamentId);
+    return await this.tournamentService.getUserBets(req.user.userId, tournamentId);
   }
 }

@@ -40,7 +40,7 @@ export class NotificationController {
     @Request() req: RequestWithUser,
     @Body() dto: SendNotificationDto,
   ) {
-    return await this.notificationService.sendNotification(req.user.id, dto);
+    return await this.notificationService.sendNotification(req.user.userId, dto);
   }
 
   /**
@@ -61,7 +61,7 @@ export class NotificationController {
     @Request() req: RequestWithUser,
     @Query() query: GetNotificationsQueryDto,
   ) {
-    return await this.notificationService.getNotifications(req.user.id, query);
+    return await this.notificationService.getNotifications(req.user.userId, query);
   }
 
   /**
@@ -70,7 +70,7 @@ export class NotificationController {
    */
   @Get('count/unread')
   async getUnreadCount(@Request() req: RequestWithUser) {
-    const count = await this.notificationService.getUnreadCount(req.user.id);
+    const count = await this.notificationService.getUnreadCount(req.user.userId);
     return { unreadCount: count };
   }
 
@@ -84,7 +84,7 @@ export class NotificationController {
     @Request() req: RequestWithUser,
     @Param('notificationId') notificationId: string,
   ) {
-    await this.notificationService.markAsRead(req.user.id, notificationId);
+    await this.notificationService.markAsRead(req.user.userId, notificationId);
     return { status: 'success' };
   }
 
@@ -98,7 +98,7 @@ export class NotificationController {
     @Request() req: RequestWithUser,
     @Query('category') category?: string,
   ) {
-    return await this.notificationService.markAllAsRead(req.user.id, category);
+    return await this.notificationService.markAllAsRead(req.user.userId, category);
   }
 
   /**
@@ -111,7 +111,7 @@ export class NotificationController {
     @Request() req: RequestWithUser,
     @Param('notificationId') notificationId: string,
   ) {
-    await this.notificationService.archiveNotification(req.user.id, notificationId);
+    await this.notificationService.archiveNotification(req.user.userId, notificationId);
     return { status: 'success' };
   }
 
@@ -125,7 +125,7 @@ export class NotificationController {
     @Request() req: RequestWithUser,
     @Param('notificationId') notificationId: string,
   ) {
-    await this.notificationService.deleteNotification(req.user.id, notificationId);
+    await this.notificationService.deleteNotification(req.user.userId, notificationId);
     return { status: 'success' };
   }
 }

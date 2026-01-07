@@ -54,7 +54,7 @@ export class LottoController {
    */
   @Post('enter')
   async enterLotto(@Request() req: RequestWithUser, @Body() dto: EnterLottoDto) {
-    return await this.lottoService.enterLotto(req.user.id, dto);
+    return await this.lottoService.enterLotto(req.user.userId, dto);
   }
 
   /**
@@ -63,7 +63,7 @@ export class LottoController {
    */
   @Get('entries/me')
   async getUserEntries(@Request() req: RequestWithUser, @Query('drawId') drawId?: string) {
-    return await this.lottoService.getUserEntries(req.user.id, drawId);
+    return await this.lottoService.getUserEntries(req.user.userId, drawId);
   }
 
   /**

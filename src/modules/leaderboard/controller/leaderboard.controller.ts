@@ -18,7 +18,7 @@ export class LeaderboardController {
    */
   @Get()
   async getLeaderboard(@Request() req: RequestWithUser, @Query() dto: GetLeaderboardDto) {
-    return await this.leaderboardService.getLeaderboard(req.user.id, dto);
+    return await this.leaderboardService.getLeaderboard(req.user.userId, dto);
   }
 
   /**
@@ -27,7 +27,7 @@ export class LeaderboardController {
    */
   @Get('me')
   async getMyLeaderboards(@Request() req: RequestWithUser) {
-    return await this.leaderboardService.getUserLeaderboards(req.user.id);
+    return await this.leaderboardService.getUserLeaderboards(req.user.userId);
   }
 
   /**
