@@ -5,18 +5,16 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
-} from 'typeorm';
+} from "typeorm";
 
-@Entity('user_sessions')
-@Index(['userId', 'isActive'])
-@Index(['sessionToken'], { unique: true })
-@Index(['expiresAt'])
+@Entity("user_sessions")
+@Index(["userId", "isActive"])
+@Index(["expiresAt"])
 export class UserSession {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column()
-  @Index()
   userId: number;
 
   @Column({ unique: true })
@@ -28,7 +26,7 @@ export class UserSession {
   @Column({ nullable: true })
   ipAddress?: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   userAgent?: string;
 
   @Column({ nullable: true })
@@ -37,13 +35,13 @@ export class UserSession {
   @Column({ default: true })
   isActive: boolean;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: "timestamp" })
   expiresAt: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: "timestamp", nullable: true })
   lastActivityAt?: Date;
 
-  @Column('simple-json', { nullable: true })
+  @Column("simple-json", { nullable: true })
   metadata?: {
     loginMethod?: string;
     location?: string;

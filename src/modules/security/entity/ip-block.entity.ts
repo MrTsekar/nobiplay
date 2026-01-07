@@ -5,18 +5,17 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
-} from 'typeorm';
+} from "typeorm";
 
-@Entity('ip_blocks')
-@Index(['ipAddress'])
-@Index(['isActive'])
-@Index(['expiresAt'])
+@Entity("ip_blocks")
+@Index(["ipAddress"])
+@Index(["isActive"])
+@Index(["expiresAt"])
 export class IpBlock {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column()
-  @Index()
   ipAddress: string;
 
   @Column()
@@ -28,10 +27,10 @@ export class IpBlock {
   @Column({ default: true })
   isActive: boolean;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: "timestamp", nullable: true })
   expiresAt?: Date;
 
-  @Column('simple-json', { nullable: true })
+  @Column("simple-json", { nullable: true })
   metadata?: {
     country?: string;
     attempts?: number;

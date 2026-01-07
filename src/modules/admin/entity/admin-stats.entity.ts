@@ -4,26 +4,25 @@ import {
   Column,
   CreateDateColumn,
   Index,
-} from 'typeorm';
+} from "typeorm";
 
 export enum StatsType {
-  DAILY = 'DAILY',
-  WEEKLY = 'WEEKLY',
-  MONTHLY = 'MONTHLY',
+  DAILY = "DAILY",
+  WEEKLY = "WEEKLY",
+  MONTHLY = "MONTHLY",
 }
 
-@Entity('admin_stats')
-@Index(['date', 'type'], { unique: true })
+@Entity("admin_stats")
+@Index(["date", "type"], { unique: true })
 export class AdminStats {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'date' })
-  @Index()
+  @Column({ type: "date" })
   date: string;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: StatsType,
   })
   type: StatsType;
@@ -55,23 +54,23 @@ export class AdminStats {
   tournamentGames: number;
 
   // Revenue Metrics
-  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 15, scale: 2, default: 0 })
   totalRevenue: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 15, scale: 2, default: 0 })
   coinPurchases: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 15, scale: 2, default: 0 })
   vipSubscriptions: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 15, scale: 2, default: 0 })
   marketplaceRevenue: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 15, scale: 2, default: 0 })
   powerupRevenue: number;
 
   // Engagement Metrics
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
   avgSessionDuration: number; // minutes
 
   @Column({ default: 0 })
@@ -87,26 +86,26 @@ export class AdminStats {
   achievementsUnlocked: number;
 
   // Payout Metrics
-  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 15, scale: 2, default: 0 })
   coinsDistributed: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 15, scale: 2, default: 0 })
   cashWithdrawals: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 15, scale: 2, default: 0 })
   airtimeRedemptions: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 15, scale: 2, default: 0 })
   dataRedemptions: number;
 
   // Retention Metrics
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
   d1Retention: number; // Day 1 retention %
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
   d7Retention: number; // Day 7 retention %
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
   d30Retention: number; // Day 30 retention %
 
   @CreateDateColumn()
