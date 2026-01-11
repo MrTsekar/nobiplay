@@ -6,7 +6,6 @@ import {
   Body,
   Param,
   UseGuards,
-  Request,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -15,7 +14,8 @@ import { UsersService } from '../service/users.service';
 import { OtpService } from '../service/otp.service';
 import { RegisterUserDto, LoginUserDto, VerifyOtpDto, RequestOtpDto, UpdateUserDto, UpdatePinDto } from '../dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 
 @ApiTags('Users')
 @Controller('users')
@@ -127,27 +127,27 @@ export class UsersController {
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getProfile(@Request() req: RequestWithUser) {
-    const user = await this.usersService.findById(req.user.userId);
+  async getProfile(@CurrentUser() user: UserPayload) {
+    const userProfile = await this.usersService.findById(user.userId);
 
     return {
       success: true,
       data: {
-        id: user.id,
-        phone: user.phone,
-        email: user.email,
-        displayName: user.displayName,
-        rank: user.rank,
-        xp: user.xp,
-        referralCode: user.referralCode,
-        tribe: user.tribe,
-        city: user.city,
-        campus: user.campus,
-        bankAccount: user.bankAccount,
-        totalGamesPlayed: user.totalGamesPlayed,
-        totalWins: user.totalWins,
-        currentStreak: user.currentStreak,
-        longestStreak: user.longestStreak,
+        id: userProfile.id,
+        phone: userProfile.phone,
+        email: userProfile.email,
+        displayName: userProfile.displayName,
+        rank: userProfile.rank,
+        xp: userProfile.xp,
+        referralCode: userProfile.referralCode,
+        tribe: userProfile.tribe,
+        city: userProfile.city,
+        campus: userProfile.campus,
+        bankAccount: userProfile.bankAccount,
+        totalGamesPlayed: userProfile.totalGamesPlayed,
+        totalWins: userProfile.totalWins,
+        currentStreak: userProfile.currentStreak,
+        longestStreak: userProfile.longestStreak,
       },
     };
   }
@@ -158,8 +158,8 @@ export class UsersController {
    */
   @Get('me/stats')
   @UseGuards(JwtAuthGuard)
-  async getStats(@Request() req: RequestWithUser) {
-    const stats = await this.usersService.getUserStats(req.user.userId);
+  async getStats(@CurrentUser() user: UserPayload) {
+    const stats = await this.usersService.getUserStats(user.userId);
 
     return {
       success: true,
@@ -173,19 +173,19 @@ export class UsersController {
    */
   @Put('me')
   @UseGuards(JwtAuthGuard)
-  async updateProfile(@Request() req: RequestWithUser, @Body() updateDto: UpdateUserDto) {
-    const user = await this.usersService.updateProfile(req.user.userId, updateDto);
+  async updateProfile(@CurrentUser() user: UserPayload, @Body() updateDto: UpdateUserDto) {
+    const updatedUser = await this.usersService.updateProfile(user.userId, updateDto);
 
     return {
       success: true,
       message: 'Profile updated successfully',
       data: {
-        id: user.id,
-        displayName: user.displayName,
-        email: user.email,
-        tribe: user.tribe,
-        city: user.city,
-        campus: user.campus,
+        id: updatedUser.id,
+        displayName: updatedUser.displayName,
+        email: updatedUser.email,
+        tribe: updatedUser.tribe,
+        city: updatedUser.city,
+        campus: updatedUser.campus,
       },
     };
   }
@@ -197,8 +197,8 @@ export class UsersController {
   @Put('me/pin')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async updatePin(@Request() req: RequestWithUser, @Body() updatePinDto: UpdatePinDto) {
-    await this.usersService.updatePin(req.user.userId, updatePinDto);
+  async updatePin(@CurrentUser() user: UserPayload, @Body() updatePinDto: UpdatePinDto) {
+    await this.usersService.updatePin(user.userId, updatePinDto);
 
     return {
       success: true,

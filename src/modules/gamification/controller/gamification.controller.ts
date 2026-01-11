@@ -6,7 +6,6 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { GamificationService } from '../service/gamification.service';
@@ -15,7 +14,8 @@ import {
   OpenMysteryBoxDto,
 } from '../dto/gamification.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 
 @ApiTags('Gamification')
 @ApiBearerAuth('JWT')
@@ -31,8 +31,8 @@ export class GamificationController {
    * GET /gamification/streak
    */
   @Get('streak')
-  async getUserStreak(@Request() req: RequestWithUser) {
-    return await this.gamificationService.getUserStreak(req.user.userId);
+  async getUserStreak(@CurrentUser() user: UserPayload) {
+    return await this.gamificationService.getUserStreak(user.userId);
   }
 
   /**
@@ -40,8 +40,8 @@ export class GamificationController {
    * POST /gamification/spin
    */
   @Post('spin')
-  async spinWheel(@Request() req: RequestWithUser) {
-    return await this.gamificationService.spinWheel(req.user.userId);
+  async spinWheel(@CurrentUser() user: UserPayload) {
+    return await this.gamificationService.spinWheel(user.userId);
   }
 
   /**
@@ -50,11 +50,11 @@ export class GamificationController {
    */
   @Get('spin/history')
   async getUserSpinHistory(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Query('limit') limit?: number,
   ) {
     return await this.gamificationService.getUserSpinHistory(
-      req.user.userId,
+      user.userId,
       limit || 20,
     );
   }
@@ -82,9 +82,9 @@ export class GamificationController {
    * GET /gamification/mystery-boxes
    */
   @Get('mystery-boxes')
-  async getUserMysteryBoxes(@Request() req: RequestWithUser) {
+  async getUserMysteryBoxes(@CurrentUser() user: UserPayload) {
     return await this.gamificationService.getUserMysteryBoxes(
-      req.user.userId,
+      user.userId,
     );
   }
 
@@ -93,9 +93,9 @@ export class GamificationController {
    * POST /gamification/mystery-boxes/open
    */
   @Post('mystery-boxes/open')
-  async openMysteryBox(@Request() req: RequestWithUser, @Body() dto: OpenMysteryBoxDto) {
+  async openMysteryBox(@CurrentUser() user: UserPayload, @Body() dto: OpenMysteryBoxDto) {
     return await this.gamificationService.openMysteryBox(
-      req.user.userId,
+      user.userId,
       dto.boxId,
     );
   }

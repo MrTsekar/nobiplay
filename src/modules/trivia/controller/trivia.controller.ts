@@ -4,7 +4,6 @@ import {
   Post,
   Body,
   UseGuards,
-  Request,
   HttpCode,
   HttpStatus,
   Query,
@@ -21,7 +20,8 @@ import {
   GetTriviaQuestionsDto,
 } from '../dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 import axios from 'axios';
 
 @ApiTags('Trivia')
@@ -71,8 +71,8 @@ export class TriviaController {
    */
   @Post('start-game')
   @ApiOperation({ summary: 'Start a new game session with payment' })
-  async startGame(@Request() req: RequestWithUser, @Body() dto: StartGameDto) {
-    const result = await this.triviaService.startGameSession(req.user.userId, dto);
+  async startGame(@CurrentUser() user: UserPayload, @Body() dto: StartGameDto) {
+    const result = await this.triviaService.startGameSession(user.userId, dto);
     return {
       success: true,
       message: result.paymentType === 'direct' 
@@ -88,9 +88,9 @@ export class TriviaController {
    */
   @Post('verify-payment')
   @ApiOperation({ summary: 'Verify direct payment for game session' })
-  async verifyPayment(@Request() req: RequestWithUser, @Body() dto: VerifyDirectPaymentDto) {
+  async verifyPayment(@CurrentUser() user: UserPayload, @Body() dto: VerifyDirectPaymentDto) {
     const result = await this.triviaService.verifyDirectPayment(
-      req.user.userId,
+      user.userId,
       dto.sessionToken,
       dto.paymentReference,
     );
@@ -108,11 +108,11 @@ export class TriviaController {
   @Get('questions')
   @ApiOperation({ summary: 'Get trivia questions for active session' })
   async getQuestions(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Query() query: GetTriviaQuestionsDto,
   ) {
     const result = await this.triviaService.getQuestionsForSession(
-      req.user.userId,
+      user.userId,
       query.sessionToken,
     );
     return {
@@ -135,13 +135,13 @@ export class TriviaController {
   @Post('submit-result')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Submit game result with session validation' })
-  async submitGameResult(@Request() req: RequestWithUser, @Body() dto: SubmitGameResultDto) {
+  async submitGameResult(@CurrentUser() user: UserPayload, @Body() dto: SubmitGameResultDto) {
     // Validate DTO has sessionToken
     if (!dto.sessionToken) {
       throw new BadRequestException('Session token is required');
     }
 
-    const result = await this.triviaService.submitGameResult(req.user.userId, dto);
+    const result = await this.triviaService.submitGameResult(user.userId, dto);
 
     return {
       success: true,
@@ -165,8 +165,8 @@ export class TriviaController {
    * GET /trivia/history
    */
   @Get('history')
-  async getUserSessions(@Request() req: RequestWithUser, @Query() query: GetTriviaSessionsDto) {
-    const result = await this.triviaService.getUserSessions(req.user.userId, query);
+  async getUserSessions(@CurrentUser() user: UserPayload, @Query() query: GetTriviaSessionsDto) {
+    const result = await this.triviaService.getUserSessions(user.userId, query);
 
     return {
       success: true,
@@ -180,8 +180,8 @@ export class TriviaController {
    * GET /trivia/stats
    */
   @Get('stats')
-  async getUserStats(@Request() req: RequestWithUser, @Query() query: GetStatsDto) {
-    const stats = await this.triviaService.getUserStats(req.user.userId, query);
+  async getUserStats(@CurrentUser() user: UserPayload, @Query() query: GetStatsDto) {
+    const stats = await this.triviaService.getUserStats(user.userId, query);
 
     return {
       success: true,

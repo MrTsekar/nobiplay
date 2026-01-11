@@ -2,14 +2,14 @@ import {
   Controller,
   Get,
   UseGuards,
-  Request,
   Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { ReferralService } from '../service/referral.service';
 import { GetReferralStatsDto } from '../dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 
 @ApiTags('Referral')
 @ApiBearerAuth('JWT')
@@ -23,8 +23,8 @@ export class ReferralController {
    * GET /referral/stats
    */
   @Get('stats')
-  async getReferralStats(@Request() req: RequestWithUser, @Query() query: GetReferralStatsDto) {
-    const result = await this.referralService.getReferralStats(req.user.userId, query);
+  async getReferralStats(@CurrentUser() user: UserPayload, @Query() query: GetReferralStatsDto) {
+    const result = await this.referralService.getReferralStats(user.userId, query);
 
     return {
       success: true,

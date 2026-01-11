@@ -7,7 +7,6 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SecurityService } from '../service/security.service';
@@ -21,7 +20,8 @@ import {
   GetFraudAlertsQueryDto,
 } from '../dto/security.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 
 @ApiTags('Security')
 @ApiBearerAuth('JWT')
@@ -33,8 +33,8 @@ export class SecurityController {
   @Post('ip/block')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Block an IP address (admin)' })
-  async blockIp(@Request() req: RequestWithUser, @Body() dto: BlockIpDto) {
-    return await this.securityService.blockIp(dto, req.user.userId.toString());
+  async blockIp(@CurrentUser() user: UserPayload, @Body() dto: BlockIpDto) {
+    return await this.securityService.blockIp(dto, user.userId.toString());
   }
 
   @Post('ip/unblock')
@@ -86,14 +86,14 @@ export class SecurityController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Update fraud alert (admin)' })
   async updateFraudAlert(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Param('alertId') alertId: number,
     @Body() dto: UpdateFraudAlertDto,
   ) {
     return await this.securityService.updateFraudAlert(
       alertId,
       dto,
-      req.user.userId.toString(),
+      user.userId.toString(),
     );
   }
 
@@ -101,8 +101,8 @@ export class SecurityController {
   @Get('sessions/my')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get user active sessions' })
-  async getMySessions(@Request() req: RequestWithUser) {
-    return await this.securityService.getUserSessions(parseInt(req.user.userId));
+  async getMySessions(@CurrentUser() user: UserPayload) {
+    return await this.securityService.getUserSessions(parseInt(user.userId));
   }
 
   @Post('sessions/:sessionId/revoke')
@@ -116,8 +116,8 @@ export class SecurityController {
   @Post('sessions/revoke-all')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Revoke all user sessions' })
-  async revokeAllSessions(@Request() req: RequestWithUser) {
-    await this.securityService.revokeAllUserSessions(parseInt(req.user.userId));
+  async revokeAllSessions(@CurrentUser() user: UserPayload) {
+    await this.securityService.revokeAllUserSessions(parseInt(user.userId));
     return { status: 'success' };
   }
 }

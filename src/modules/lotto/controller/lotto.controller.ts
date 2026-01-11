@@ -6,13 +6,13 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { LottoService } from '../service/lotto.service';
 import { CreateLottoDrawDto, EnterLottoDto } from '../dto/lotto.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 
 @ApiTags('Lotto')
 @ApiBearerAuth('JWT')
@@ -53,8 +53,8 @@ export class LottoController {
    * POST /lotto/enter
    */
   @Post('enter')
-  async enterLotto(@Request() req: RequestWithUser, @Body() dto: EnterLottoDto) {
-    return await this.lottoService.enterLotto(req.user.userId, dto);
+  async enterLotto(@CurrentUser() user: UserPayload, @Body() dto: EnterLottoDto) {
+    return await this.lottoService.enterLotto(user.userId, dto);
   }
 
   /**
@@ -62,8 +62,8 @@ export class LottoController {
    * GET /lotto/entries/me?drawId=xxx
    */
   @Get('entries/me')
-  async getUserEntries(@Request() req: RequestWithUser, @Query('drawId') drawId?: string) {
-    return await this.lottoService.getUserEntries(req.user.userId, drawId);
+  async getUserEntries(@CurrentUser() user: UserPayload, @Query('drawId') drawId?: string) {
+    return await this.lottoService.getUserEntries(user.userId, drawId);
   }
 
   /**

@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AchievementsService } from '../service/achievements.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 import {
   CreateAchievementDto,
   GetUserAchievementsDto,
@@ -23,10 +24,10 @@ export class AchievementsController {
   @Get()
   @ApiOperation({ summary: 'Get user achievements' })
   async getUserAchievements(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Query() dto: GetUserAchievementsDto,
   ) {
-    return await this.achievementsService.getUserAchievements(req.user.userId, dto);
+    return await this.achievementsService.getUserAchievements(user.userId, dto);
   }
 
   /**
@@ -35,8 +36,8 @@ export class AchievementsController {
    */
   @Get('stats')
   @ApiOperation({ summary: 'Get achievement statistics' })
-  async getAchievementStats(@Request() req: RequestWithUser) {
-    return await this.achievementsService.getAchievementStats(req.user.userId);
+  async getAchievementStats(@CurrentUser() user: UserPayload) {
+    return await this.achievementsService.getAchievementStats(user.userId);
   }
 
   /**
@@ -56,10 +57,10 @@ export class AchievementsController {
   @Post('claim')
   @ApiOperation({ summary: 'Claim achievement reward' })
   async claimAchievementReward(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: ClaimAchievementRewardDto,
   ) {
-    return await this.achievementsService.claimAchievementReward(req.user.userId, dto);
+    return await this.achievementsService.claimAchievementReward(user.userId, dto);
   }
 
   /**

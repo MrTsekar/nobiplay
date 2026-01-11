@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { QuestsService } from '../service/quests.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 import {
   CreateQuestDto,
   GetUserQuestsDto,
@@ -23,10 +24,10 @@ export class QuestsController {
   @Get()
   @ApiOperation({ summary: 'Get user quests' })
   async getUserQuests(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Query() dto: GetUserQuestsDto,
   ) {
-    return await this.questsService.getUserQuests(req.user.userId, dto);
+    return await this.questsService.getUserQuests(user.userId, dto);
   }
 
   /**
@@ -35,8 +36,8 @@ export class QuestsController {
    */
   @Get('stats')
   @ApiOperation({ summary: 'Get quest statistics' })
-  async getQuestStats(@Request() req: RequestWithUser) {
-    return await this.questsService.getQuestStats(req.user.userId);
+  async getQuestStats(@CurrentUser() user: UserPayload) {
+    return await this.questsService.getQuestStats(user.userId);
   }
 
   /**
@@ -45,8 +46,8 @@ export class QuestsController {
    */
   @Post('daily/assign')
   @ApiOperation({ summary: 'Assign daily quests' })
-  async assignDailyQuests(@Request() req: RequestWithUser) {
-    return await this.questsService.assignDailyQuests(req.user.userId);
+  async assignDailyQuests(@CurrentUser() user: UserPayload) {
+    return await this.questsService.assignDailyQuests(user.userId);
   }
 
   /**
@@ -56,10 +57,10 @@ export class QuestsController {
   @Post('claim')
   @ApiOperation({ summary: 'Claim quest reward' })
   async claimQuestReward(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: ClaimQuestRewardDto,
   ) {
-    return await this.questsService.claimQuestReward(req.user.userId, dto);
+    return await this.questsService.claimQuestReward(user.userId, dto);
   }
 
   /**

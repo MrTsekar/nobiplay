@@ -8,7 +8,6 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
   HttpCode,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
@@ -22,7 +21,8 @@ import {
   DeleteNotificationDto,
 } from '../dto/notification.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 
 @ApiTags('Notification')
 @ApiBearerAuth('JWT')
@@ -37,10 +37,10 @@ export class NotificationController {
    */
   @Post('send')
   async sendNotification(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: SendNotificationDto,
   ) {
-    return await this.notificationService.sendNotification(req.user.userId, dto);
+    return await this.notificationService.sendNotification(user.userId, dto);
   }
 
   /**
@@ -58,10 +58,10 @@ export class NotificationController {
    */
   @Get()
   async getNotifications(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Query() query: GetNotificationsQueryDto,
   ) {
-    return await this.notificationService.getNotifications(req.user.userId, query);
+    return await this.notificationService.getNotifications(user.userId, query);
   }
 
   /**
@@ -69,8 +69,8 @@ export class NotificationController {
    * GET /notifications/count/unread
    */
   @Get('count/unread')
-  async getUnreadCount(@Request() req: RequestWithUser) {
-    const count = await this.notificationService.getUnreadCount(req.user.userId);
+  async getUnreadCount(@CurrentUser() user: UserPayload) {
+    const count = await this.notificationService.getUnreadCount(user.userId);
     return { unreadCount: count };
   }
 
@@ -81,10 +81,10 @@ export class NotificationController {
   @Put(':notificationId/read')
   @HttpCode(200)
   async markAsRead(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Param('notificationId') notificationId: string,
   ) {
-    await this.notificationService.markAsRead(req.user.userId, notificationId);
+    await this.notificationService.markAsRead(user.userId, notificationId);
     return { status: 'success' };
   }
 
@@ -95,10 +95,10 @@ export class NotificationController {
   @Put('read-all')
   @HttpCode(200)
   async markAllAsRead(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Query('category') category?: string,
   ) {
-    return await this.notificationService.markAllAsRead(req.user.userId, category);
+    return await this.notificationService.markAllAsRead(user.userId, category);
   }
 
   /**
@@ -108,10 +108,10 @@ export class NotificationController {
   @Put(':notificationId/archive')
   @HttpCode(200)
   async archiveNotification(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Param('notificationId') notificationId: string,
   ) {
-    await this.notificationService.archiveNotification(req.user.userId, notificationId);
+    await this.notificationService.archiveNotification(user.userId, notificationId);
     return { status: 'success' };
   }
 
@@ -122,10 +122,10 @@ export class NotificationController {
   @Delete(':notificationId')
   @HttpCode(200)
   async deleteNotification(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Param('notificationId') notificationId: string,
   ) {
-    await this.notificationService.deleteNotification(req.user.userId, notificationId);
+    await this.notificationService.deleteNotification(user.userId, notificationId);
     return { status: 'success' };
   }
 }

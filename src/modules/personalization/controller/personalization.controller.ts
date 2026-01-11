@@ -5,7 +5,6 @@ import {
   Body,
   Query,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PersonalizationService } from '../service/personalization.service';
@@ -20,7 +19,8 @@ import {
   CreateProfileItemDto,
 } from '../dto/personalization.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 import { ProfileItemType } from '../entity/profile-item.entity';
 
 @ApiTags('Personalization')
@@ -40,22 +40,22 @@ export class PersonalizationController {
   @Get('avatars/my')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get user owned avatars' })
-  async getMyAvatars(@Request() req: RequestWithUser) {
-    return await this.personalizationService.getUserAvatars(parseInt(req.user.userId));
+  async getMyAvatars(@CurrentUser() user: UserPayload) {
+    return await this.personalizationService.getUserAvatars(parseInt(user.userId));
   }
 
   @Post('avatars/purchase')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Purchase an avatar' })
-  async purchaseAvatar(@Request() req: RequestWithUser, @Body() dto: PurchaseAvatarDto) {
-    return await this.personalizationService.purchaseAvatar(parseInt(req.user.userId), dto);
+  async purchaseAvatar(@CurrentUser() user: UserPayload, @Body() dto: PurchaseAvatarDto) {
+    return await this.personalizationService.purchaseAvatar(parseInt(user.userId), dto);
   }
 
   @Post('avatars/equip')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Equip an avatar' })
-  async equipAvatar(@Request() req: RequestWithUser, @Body() dto: EquipAvatarDto) {
-    await this.personalizationService.equipAvatar(parseInt(req.user.userId), dto);
+  async equipAvatar(@CurrentUser() user: UserPayload, @Body() dto: EquipAvatarDto) {
+    await this.personalizationService.equipAvatar(parseInt(user.userId), dto);
     return { status: 'success' };
   }
 
@@ -71,27 +71,27 @@ export class PersonalizationController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get user owned profile items' })
   async getMyProfileItems(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Query('type') type?: ProfileItemType,
   ) {
-    return await this.personalizationService.getUserProfileItems(parseInt(req.user.userId), type);
+    return await this.personalizationService.getUserProfileItems(parseInt(user.userId), type);
   }
 
   @Post('items/purchase')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Purchase a profile item' })
   async purchaseProfileItem(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: PurchaseProfileItemDto,
   ) {
-    return await this.personalizationService.purchaseProfileItem(parseInt(req.user.userId), dto);
+    return await this.personalizationService.purchaseProfileItem(parseInt(user.userId), dto);
   }
 
   @Post('items/equip')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Equip a profile item' })
-  async equipProfileItem(@Request() req: RequestWithUser, @Body() dto: EquipProfileItemDto) {
-    await this.personalizationService.equipProfileItem(parseInt(req.user.userId), dto);
+  async equipProfileItem(@CurrentUser() user: UserPayload, @Body() dto: EquipProfileItemDto) {
+    await this.personalizationService.equipProfileItem(parseInt(user.userId), dto);
     return { status: 'success' };
   }
 
@@ -99,8 +99,8 @@ export class PersonalizationController {
   @Get('my-customization')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get user equipped customizations' })
-  async getMyCustomization(@Request() req: RequestWithUser) {
-    return await this.personalizationService.getUserCustomization(parseInt(req.user.userId));
+  async getMyCustomization(@CurrentUser() user: UserPayload) {
+    return await this.personalizationService.getUserCustomization(parseInt(user.userId));
   }
 
   // ============= ADMIN =============

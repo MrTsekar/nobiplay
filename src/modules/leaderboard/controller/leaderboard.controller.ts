@@ -1,9 +1,10 @@
-import { Controller, Get, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { LeaderboardService } from '../service/leaderboard.service';
 import { GetLeaderboardDto, GetTopPerformersDto } from '../dto/leaderboard.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 
 @ApiTags('Leaderboard')
 @ApiBearerAuth('JWT')
@@ -17,8 +18,8 @@ export class LeaderboardController {
    * GET /leaderboard?type=global&period=weekly
    */
   @Get()
-  async getLeaderboard(@Request() req: RequestWithUser, @Query() dto: GetLeaderboardDto) {
-    return await this.leaderboardService.getLeaderboard(req.user.userId, dto);
+  async getLeaderboard(@CurrentUser() user: UserPayload, @Query() dto: GetLeaderboardDto) {
+    return await this.leaderboardService.getLeaderboard(user.userId, dto);
   }
 
   /**
@@ -26,8 +27,8 @@ export class LeaderboardController {
    * GET /leaderboard/me
    */
   @Get('me')
-  async getMyLeaderboards(@Request() req: RequestWithUser) {
-    return await this.leaderboardService.getUserLeaderboards(req.user.userId);
+  async getMyLeaderboards(@CurrentUser() user: UserPayload) {
+    return await this.leaderboardService.getUserLeaderboards(user.userId);
   }
 
   /**

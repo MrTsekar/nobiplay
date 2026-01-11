@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { VIPService } from '../service/vip.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 import {
   SubscribeVIPDto,
   GetSubscriptionHistoryDto,
@@ -33,10 +34,10 @@ export class VIPController {
   @Post('subscribe')
   @ApiOperation({ summary: 'Subscribe to VIP tier' })
   async subscribeVIP(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: SubscribeVIPDto,
   ) {
-    return await this.vipService.subscribeVIP(req.user.userId, dto);
+    return await this.vipService.subscribeVIP(user.userId, dto);
   }
 
   /**
@@ -46,10 +47,10 @@ export class VIPController {
   @Get('history')
   @ApiOperation({ summary: 'Get subscription history' })
   async getSubscriptionHistory(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Query() dto: GetSubscriptionHistoryDto,
   ) {
-    return await this.vipService.getSubscriptionHistory(req.user.userId, dto);
+    return await this.vipService.getSubscriptionHistory(user.userId, dto);
   }
 
   /**
@@ -58,8 +59,8 @@ export class VIPController {
    */
   @Get('active')
   @ApiOperation({ summary: 'Get active subscription' })
-  async getActiveSubscription(@Request() req: RequestWithUser) {
-    return await this.vipService.getActiveSubscription(req.user.userId);
+  async getActiveSubscription(@CurrentUser() user: UserPayload) {
+    return await this.vipService.getActiveSubscription(user.userId);
   }
 
   /**
@@ -68,8 +69,8 @@ export class VIPController {
    */
   @Get('limits')
   @ApiOperation({ summary: 'Get VIP daily limits' })
-  async getVIPLimits(@Request() req: RequestWithUser) {
-    return await this.vipService.getVIPLimits(req.user.userId);
+  async getVIPLimits(@CurrentUser() user: UserPayload) {
+    return await this.vipService.getVIPLimits(user.userId);
   }
 
   /**
@@ -79,10 +80,10 @@ export class VIPController {
   @Post('cancel')
   @ApiOperation({ summary: 'Cancel VIP subscription' })
   async cancelSubscription(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: CancelSubscriptionDto,
   ) {
-    return await this.vipService.cancelSubscription(req.user.userId, dto);
+    return await this.vipService.cancelSubscription(user.userId, dto);
   }
 
   /**

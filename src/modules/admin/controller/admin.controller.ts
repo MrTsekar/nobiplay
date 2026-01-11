@@ -8,7 +8,6 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
   HttpCode,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
@@ -36,7 +35,8 @@ import {
   AdjustBalanceDto,
 } from '../dto/admin.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 
 @ApiTags('Admin')
 @ApiBearerAuth('JWT')
@@ -52,10 +52,10 @@ export class AdminController {
   @Post('users')
   @UseGuards(JwtAuthGuard)
   async createAdmin(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: CreateAdminDto,
   ) {
-    return await this.adminService.createAdmin(dto, req.user.userId);
+    return await this.adminService.createAdmin(dto, user.userId);
   }
 
   @Get('users')
@@ -67,21 +67,21 @@ export class AdminController {
   @Put('users/:adminId')
   @UseGuards(JwtAuthGuard)
   async updateAdmin(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Param('adminId') adminId: string,
     @Body() dto: UpdateAdminDto,
   ) {
-    return await this.adminService.updateAdmin(adminId, dto, req.user.userId);
+    return await this.adminService.updateAdmin(adminId, dto, user.userId);
   }
 
   @Delete('users/:adminId')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async deleteAdmin(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Param('adminId') adminId: string,
   ) {
-    await this.adminService.deleteAdmin(adminId, req.user.userId);
+    await this.adminService.deleteAdmin(adminId, user.userId);
     return { status: 'success' };
   }
 
@@ -95,21 +95,21 @@ export class AdminController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async updateUserStatus(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Param('userId') userId: string,
     @Body() dto: UpdateUserStatusDto,
   ) {
-    await this.adminService.updateUserStatus(userId, dto, req.user.userId);
+    await this.adminService.updateUserStatus(userId, dto, user.userId);
     return { status: 'success' };
   }
 
   @Post('content/trivia')
   @UseGuards(JwtAuthGuard)
   async createTriviaQuestion(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: CreateTriviaQuestionDto,
   ) {
-    return await this.adminService.createTriviaQuestion(dto, req.user.userId);
+    return await this.adminService.createTriviaQuestion(dto, user.userId);
   }
 
   @Get('content/trivia')
@@ -122,11 +122,11 @@ export class AdminController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async updateTriviaQuestion(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Param('questionId') questionId: string,
     @Body() dto: UpdateTriviaQuestionDto,
   ) {
-    await this.adminService.updateTriviaQuestion(questionId, dto, req.user.userId);
+    await this.adminService.updateTriviaQuestion(questionId, dto, user.userId);
     return { status: 'success' };
   }
 
@@ -134,19 +134,19 @@ export class AdminController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async deleteTriviaQuestions(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: BulkDeleteDto,
   ) {
-    return await this.adminService.deleteTriviaQuestions(dto, req.user.userId);
+    return await this.adminService.deleteTriviaQuestions(dto, user.userId);
   }
 
   @Post('content/marketplace')
   @UseGuards(JwtAuthGuard)
   async createMarketplaceItem(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: CreateMarketplaceItemDto,
   ) {
-    return await this.adminService.createMarketplaceItem(dto, req.user.userId);
+    return await this.adminService.createMarketplaceItem(dto, user.userId);
   }
 
   @Get('content/marketplace')
@@ -159,11 +159,11 @@ export class AdminController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async updateMarketplaceItem(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Param('itemId') itemId: string,
     @Body() dto: UpdateMarketplaceItemDto,
   ) {
-    await this.adminService.updateMarketplaceItem(itemId, dto, req.user.userId);
+    await this.adminService.updateMarketplaceItem(itemId, dto, user.userId);
     return { status: 'success' };
   }
 
@@ -171,10 +171,10 @@ export class AdminController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async deleteMarketplaceItems(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: BulkDeleteDto,
   ) {
-    return await this.adminService.deleteMarketplaceItems(dto, req.user.userId);
+    return await this.adminService.deleteMarketplaceItems(dto, user.userId);
   }
 
   @Get('analytics/dashboard')
@@ -200,10 +200,10 @@ export class AdminController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Create support ticket (user endpoint)' })
   async createSupportTicket(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: CreateSupportTicketDto,
   ) {
-    return await this.adminService.createSupportTicket(parseInt(req.user.userId), dto);
+    return await this.adminService.createSupportTicket(parseInt(user.userId), dto);
   }
 
   @Get('support/tickets')
@@ -217,11 +217,11 @@ export class AdminController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Update support ticket (admin only)' })
   async updateSupportTicket(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Param('ticketId') ticketId: string,
     @Body() dto: UpdateSupportTicketDto,
   ) {
-    return await this.adminService.updateSupportTicket(ticketId, dto, req.user.userId);
+    return await this.adminService.updateSupportTicket(ticketId, dto, user.userId);
   }
 
   // ============= USER MANAGEMENT =============
@@ -229,32 +229,32 @@ export class AdminController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Ban user' })
   async banUser(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Param('userId') userId: number,
     @Body() dto: BanUserDto,
   ) {
-    return await this.adminService.banUser(userId, dto, req.user.userId);
+    return await this.adminService.banUser(userId, dto, user.userId);
   }
 
   @Post('users/:userId/unban')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Unban user' })
   async unbanUser(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Param('userId') userId: number,
   ) {
-    return await this.adminService.unbanUser(userId, req.user.userId);
+    return await this.adminService.unbanUser(userId, user.userId);
   }
 
   @Post('users/:userId/adjust-balance')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Adjust user balance' })
   async adjustBalance(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Param('userId') userId: number,
     @Body() dto: AdjustBalanceDto,
   ) {
-    return await this.adminService.adjustUserBalance(userId, dto, req.user.userId);
+    return await this.adminService.adjustUserBalance(userId, dto, user.userId);
   }
 
   // ============= LIVE MONITORING =============

@@ -6,7 +6,6 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
   HttpCode,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
@@ -18,7 +17,8 @@ import {
   PaymentHistoryQueryDto,
 } from '../dto/payment.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 
 @ApiTags('Payment')
 @ApiBearerAuth('JWT')
@@ -35,10 +35,10 @@ export class PaymentController {
   @ApiResponse({ status: 201, description: 'Payment initiated successfully' })
   @Post('initiate')
   async initiatePayment(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: InitiatePaymentDto,
   ) {
-    return await this.paymentService.initiatePayment(req.user.userId, dto);
+    return await this.paymentService.initiatePayment(user.userId, dto);
   }
 
   /**
@@ -49,10 +49,10 @@ export class PaymentController {
   @ApiResponse({ status: 200, description: 'Payment verified' })
   @Post('verify')
   async verifyPayment(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: PaymentVerificationDto,
   ) {
-    return await this.paymentService.verifyPayment(req.user.userId, dto);
+    return await this.paymentService.verifyPayment(user.userId, dto);
   }
 
   /**
@@ -63,11 +63,11 @@ export class PaymentController {
   @ApiResponse({ status: 200, description: 'Transaction details retrieved' })
   @Get('transactions/:transactionId')
   async getTransactionDetails(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Param('transactionId') transactionId: string,
   ) {
     return await this.paymentService.getTransactionDetails(
-      req.user.userId,
+      user.userId,
       transactionId,
     );
   }
@@ -78,10 +78,10 @@ export class PaymentController {
    */
   @Get('history')
   async getPaymentHistory(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Query() query: PaymentHistoryQueryDto,
   ) {
-    return await this.paymentService.getPaymentHistory(req.user.userId, query);
+    return await this.paymentService.getPaymentHistory(user.userId, query);
   }
 
   /**
@@ -90,10 +90,10 @@ export class PaymentController {
    */
   @Post('refund')
   async initiateRefund(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: InitiateRefundDto,
   ) {
-    return await this.paymentService.initiateRefund(req.user.userId, dto);
+    return await this.paymentService.initiateRefund(user.userId, dto);
   }
 
   /**

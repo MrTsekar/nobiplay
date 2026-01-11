@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { PowerupsService } from '../service/powerups.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 import {
   PurchasePowerupDto,
   UsePowerupDto,
@@ -34,10 +35,10 @@ export class PowerupsController {
   @Get('inventory')
   @ApiOperation({ summary: 'Get powerup inventory' })
   async getUserPowerups(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Query() dto: GetPowerupsDto,
   ) {
-    return await this.powerupsService.getUserPowerups(req.user.userId, dto);
+    return await this.powerupsService.getUserPowerups(user.userId, dto);
   }
 
   /**
@@ -46,8 +47,8 @@ export class PowerupsController {
    */
   @Get('stats')
   @ApiOperation({ summary: 'Get powerup statistics' })
-  async getPowerupStats(@Request() req: RequestWithUser) {
-    return await this.powerupsService.getPowerupStats(req.user.userId);
+  async getPowerupStats(@CurrentUser() user: UserPayload) {
+    return await this.powerupsService.getPowerupStats(user.userId);
   }
 
   /**
@@ -57,10 +58,10 @@ export class PowerupsController {
   @Post('purchase')
   @ApiOperation({ summary: 'Purchase powerup' })
   async purchasePowerup(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: PurchasePowerupDto,
   ) {
-    return await this.powerupsService.purchasePowerup(req.user.userId, dto);
+    return await this.powerupsService.purchasePowerup(user.userId, dto);
   }
 
   /**
@@ -70,10 +71,10 @@ export class PowerupsController {
   @Post('use')
   @ApiOperation({ summary: 'Use powerup' })
   async usePowerup(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: UsePowerupDto,
   ) {
-    return await this.powerupsService.usePowerup(req.user.userId, dto);
+    return await this.powerupsService.usePowerup(user.userId, dto);
   }
 
   /**

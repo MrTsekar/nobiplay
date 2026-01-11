@@ -6,7 +6,6 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { MarketplaceService } from '../service/marketplace.service';
@@ -16,7 +15,8 @@ import {
   GetMarketplaceItemsDto,
 } from '../dto/marketplace.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 
 @ApiTags('Marketplace')
 @ApiBearerAuth('JWT')
@@ -50,9 +50,9 @@ export class MarketplaceController {
    * POST /marketplace/redeem
    */
   @Post('redeem')
-  async redeemItem(@Request() req: RequestWithUser, @Body() dto: RedeemItemDto) {
+  async redeemItem(@CurrentUser() user: UserPayload, @Body() dto: RedeemItemDto) {
     return await this.marketplaceService.redeemItem(
-      req.user.userId,
+      user.userId,
       dto.itemId,
       {
         recipientPhone: dto.recipientPhone,
@@ -69,11 +69,11 @@ export class MarketplaceController {
    */
   @Get('redemptions/me')
   async getUserRedemptions(
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
     @Query('limit') limit?: number,
   ) {
     return await this.marketplaceService.getUserRedemptions(
-      req.user.userId,
+      user.userId,
       limit || 20,
     );
   }
@@ -83,9 +83,9 @@ export class MarketplaceController {
    * GET /marketplace/redemptions/:id
    */
   @Get('redemptions/:id')
-  async getRedemptionDetails(@Request() req: RequestWithUser, @Param('id') id: string) {
+  async getRedemptionDetails(@CurrentUser() user: UserPayload, @Param('id') id: string) {
     return await this.marketplaceService.getRedemptionDetails(
-      req.user.userId,
+      user.userId,
       id,
     );
   }

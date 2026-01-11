@@ -6,7 +6,6 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { TournamentService } from '../service/tournament.service';
@@ -16,7 +15,8 @@ import {
   PlaceBetDto,
 } from '../dto/tournament.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 @ApiTags('Tournament')
 @ApiBearerAuth('JWT')
 @Controller('tournaments')
@@ -56,8 +56,8 @@ export class TournamentController {
    * POST /tournaments/:id/register
    */
   @Post(':id/register')
-  async registerForTournament(@Request() req: RequestWithUser, @Param('id') id: string) {
-    return await this.tournamentService.registerForTournament(req.user.userId, id);
+  async registerForTournament(@CurrentUser() user: UserPayload, @Param('id') id: string) {
+    return await this.tournamentService.registerForTournament(user.userId, id);
   }
 
   /**
@@ -74,8 +74,8 @@ export class TournamentController {
    * POST /tournaments/bets
    */
   @Post('bets')
-  async placeBet(@Request() req: RequestWithUser, @Body() dto: PlaceBetDto) {
-    return await this.tournamentService.placeBet(req.user.userId, dto);
+  async placeBet(@CurrentUser() user: UserPayload, @Body() dto: PlaceBetDto) {
+    return await this.tournamentService.placeBet(user.userId, dto);
   }
 
   /**
@@ -83,7 +83,7 @@ export class TournamentController {
    * GET /tournaments/bets/me?tournamentId=xxx
    */
   @Get('bets/me')
-  async getUserBets(@Request() req: RequestWithUser, @Query('tournamentId') tournamentId?: string) {
-    return await this.tournamentService.getUserBets(req.user.userId, tournamentId);
+  async getUserBets(@CurrentUser() user: UserPayload, @Query('tournamentId') tournamentId?: string) {
+    return await this.tournamentService.getUserBets(user.userId, tournamentId);
   }
 }

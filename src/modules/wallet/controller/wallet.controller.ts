@@ -4,7 +4,6 @@ import {
   Post,
   Body,
   UseGuards,
-  Request,
   HttpCode,
   HttpStatus,
   Query,
@@ -22,7 +21,8 @@ import {
   PurchaseCoinsDto,
 } from '../dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { RequestWithUser } from '../../../common/interfaces/request-with-user.interface';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { UserPayload } from '../../../common/interfaces/user-payload.interface';
 
 @ApiTags('Wallet')
 @ApiBearerAuth('JWT')
@@ -36,8 +36,8 @@ export class WalletController {
    * GET /wallet/balance
    */
   @Get('balance')
-  async getBalance(@Request() req: RequestWithUser) {
-    const balance = await this.walletService.getBalance(req.user.userId);
+  async getBalance(@CurrentUser() user: UserPayload) {
+    const balance = await this.walletService.getBalance(user.userId);
 
     return {
       success: true,
@@ -50,8 +50,8 @@ export class WalletController {
    * GET /wallet/stats
    */
   @Get('stats')
-  async getStats(@Request() req: RequestWithUser) {
-    const stats = await this.walletService.getWalletStats(req.user.userId);
+  async getStats(@CurrentUser() user: UserPayload) {
+    const stats = await this.walletService.getWalletStats(user.userId);
 
     return {
       success: true,
@@ -65,8 +65,8 @@ export class WalletController {
    */
   @Post('topup')
   @HttpCode(HttpStatus.OK)
-  async topUpCash(@Request() req: RequestWithUser, @Body() topUpDto: TopUpCashDto) {
-    const transaction = await this.walletService.topUpCash(req.user.userId, topUpDto);
+  async topUpCash(@CurrentUser() user: UserPayload, @Body() topUpDto: TopUpCashDto) {
+    const transaction = await this.walletService.topUpCash(user.userId, topUpDto);
 
     return {
       success: true,
@@ -86,8 +86,8 @@ export class WalletController {
    */
   @Post('purchase-coins')
   @HttpCode(HttpStatus.OK)
-  async purchaseCoins(@Request() req: RequestWithUser, @Body() purchaseDto: PurchaseCoinsDto) {
-    const transaction = await this.walletService.purchaseCoins(req.user.userId, purchaseDto);
+  async purchaseCoins(@CurrentUser() user: UserPayload, @Body() purchaseDto: PurchaseCoinsDto) {
+    const transaction = await this.walletService.purchaseCoins(user.userId, purchaseDto);
 
     return {
       success: true,
@@ -107,8 +107,8 @@ export class WalletController {
    */
   @Post('redeem/airtime')
   @HttpCode(HttpStatus.OK)
-  async redeemAirtime(@Request() req: RequestWithUser, @Body() redeemDto: RedeemAirtimeDto) {
-    const transaction = await this.walletService.redeemAirtime(req.user.userId, redeemDto);
+  async redeemAirtime(@CurrentUser() user: UserPayload, @Body() redeemDto: RedeemAirtimeDto) {
+    const transaction = await this.walletService.redeemAirtime(user.userId, redeemDto);
 
     return {
       success: true,
@@ -130,8 +130,8 @@ export class WalletController {
    */
   @Post('redeem/data')
   @HttpCode(HttpStatus.OK)
-  async redeemData(@Request() req: RequestWithUser, @Body() redeemDto: RedeemDataDto) {
-    const transaction = await this.walletService.redeemData(req.user.userId, redeemDto);
+  async redeemData(@CurrentUser() user: UserPayload, @Body() redeemDto: RedeemDataDto) {
+    const transaction = await this.walletService.redeemData(user.userId, redeemDto);
 
     return {
       success: true,
@@ -154,8 +154,8 @@ export class WalletController {
    */
   @Post('withdraw/cash')
   @HttpCode(HttpStatus.OK)
-  async withdrawCash(@Request() req: RequestWithUser, @Body() withdrawDto: WithdrawCashDto) {
-    const transaction = await this.walletService.withdrawCash(req.user.userId, withdrawDto);
+  async withdrawCash(@CurrentUser() user: UserPayload, @Body() withdrawDto: WithdrawCashDto) {
+    const transaction = await this.walletService.withdrawCash(user.userId, withdrawDto);
 
     return {
       success: true,
@@ -177,8 +177,8 @@ export class WalletController {
    */
   @Post('crypto/link')
   @HttpCode(HttpStatus.OK)
-  async linkCryptoWallet(@Request() req: RequestWithUser, @Body() linkDto: LinkCryptoWalletDto) {
-    const wallet = await this.walletService.linkCryptoWallet(req.user.userId, linkDto);
+  async linkCryptoWallet(@CurrentUser() user: UserPayload, @Body() linkDto: LinkCryptoWalletDto) {
+    const wallet = await this.walletService.linkCryptoWallet(user.userId, linkDto);
 
     return {
       success: true,
@@ -196,8 +196,8 @@ export class WalletController {
    */
   @Post('redeem/crypto')
   @HttpCode(HttpStatus.OK)
-  async redeemCrypto(@Request() req: RequestWithUser, @Body() redeemDto: RedeemCryptoDto) {
-    const transaction = await this.walletService.redeemCrypto(req.user.userId, redeemDto);
+  async redeemCrypto(@CurrentUser() user: UserPayload, @Body() redeemDto: RedeemCryptoDto) {
+    const transaction = await this.walletService.redeemCrypto(user.userId, redeemDto);
 
     return {
       success: true,
@@ -218,8 +218,8 @@ export class WalletController {
    * GET /wallet/transactions
    */
   @Get('transactions')
-  async getTransactions(@Request() req: RequestWithUser, @Query() query: GetTransactionsDto) {
-    const result = await this.walletService.getTransactions(req.user.userId, query);
+  async getTransactions(@CurrentUser() user: UserPayload, @Query() query: GetTransactionsDto) {
+    const result = await this.walletService.getTransactions(user.userId, query);
 
     return {
       success: true,
@@ -233,8 +233,8 @@ export class WalletController {
    * GET /wallet/transaction/:reference
    */
   @Get('transaction/:reference')
-  async getTransactionByReference(@Request() req: RequestWithUser, @Query('reference') reference: string) {
-    const transactions = await this.walletService.getTransactions(req.user.userId, { limit: 1000 });
+  async getTransactionByReference(@CurrentUser() user: UserPayload, @Query('reference') reference: string) {
+    const transactions = await this.walletService.getTransactions(user.userId, { limit: 1000 });
     const transaction = transactions.transactions.find((t) => t.reference === reference);
 
     if (!transaction) {
