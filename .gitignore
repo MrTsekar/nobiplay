@@ -42,13 +42,9 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 
-# Markdown / Claude
+# Markdown / Claude (ignore all .md files)
 *.claude
 *.md
-# Allow important documentation
-!README.md
-!CHANGELOG.md
-!CONTRIBUTING.md
 
 # Databases
 *.sqlite
@@ -100,6 +96,9 @@ test-results/
 # Docker
 docker-data/
 *.tar
+# Allow docker-compose for development setup
+!docker-compose.yml
+!docker-compose.*.yml
 
 # VSCode testing snapshots
 *.snap
